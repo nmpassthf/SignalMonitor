@@ -1,0 +1,2 @@
+﻿#pragma once
+#define signalmonitor_VERSION "@signalmonitor_VERSION@"
