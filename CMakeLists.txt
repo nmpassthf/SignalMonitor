@@ -20,7 +20,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets SerialPort)
 
 include_directories(App/Inc)
 
@@ -34,8 +34,9 @@ set(app_icon_resource_windows "App/Assets/icon.rc")
 # all source files
 file(GLOB_RECURSE signalmonitor_SRCS
   App/Src/*.cpp
-  App/Ui/*.ui
+  App/Src/*.ui
   App/Inc/*.hpp
+  App/Inc/*.h
 )
 
 add_executable(signalmonitors
@@ -46,3 +47,4 @@ add_executable(signalmonitors
 
 target_link_libraries(signalmonitors Qt${QT_VERSION_MAJOR}::Core)
 target_link_libraries(signalmonitors Qt${QT_VERSION_MAJOR}::Widgets)
+target_link_libraries(signalmonitors Qt${QT_VERSION_MAJOR}::SerialPort)

@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Fonts/Shintyan.ttf</file>
+        <file>amamiya.ico</file>
+    </qresource>
+</RCC>

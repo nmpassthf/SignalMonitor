@@ -1,16 +1,22 @@
-﻿#include <iostream>
+﻿#include <QApplication>
 #include <QWidget>
-#include <QApplication>
 
+#include "mainwindow.h"
 #include "pch.h"
 
+INITIALIZER(INIT_PRINT) {
+    printCurrentTime() << "Initializing " << PROGRAM_NAME << std::endl;
+    printCurrentTime() << "Starting " << PROGRAM_NAME << std::endl;
+    printCurrentTime() << "Current version: " << VERSION << std::endl;
+}
 
-int main(int argc, char *argv[]) {
-    std::cout << "Starting " << PROGRAM_NAME << std::endl;
-    std::cout << "Current version: " << VERSION << std::endl;
+DESTROYER(EXIT_PRINT) {
+    printCurrentTime() << "Exiting " << PROGRAM_NAME << std::endl;
+}
 
+int main(int argc, char* argv[]) {
     QApplication app{argc, argv};
-    QWidget w{nullptr};
+    MainWindow w{nullptr};
 
     w.show();
 
