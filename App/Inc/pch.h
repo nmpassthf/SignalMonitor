@@ -3,11 +3,11 @@
 /**
  * @file pch.h
  * @author nmpassthf (nmpassthf@gmail.com)
- * @brief 
+ * @brief
  * @date 2023-07-15
- * 
+ *
  * @copyright Copyright (c) nmpassthf 2023
- * 
+ *
  */
 
 #include <chrono>
@@ -47,7 +47,5 @@ inline auto& printCurrentTime() {
 
 #define INITIALIZER(FUNC_NAME) _INITIALIZER(FUNC_NAME)
 #define DESTROYER(FUNC_NAME) _DESTROYER(FUNC_NAME)
-
-#define VSTR(s) #s
 
 #endif /* __M_PCH_H__ */

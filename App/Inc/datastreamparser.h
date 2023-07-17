@@ -3,21 +3,24 @@
 
 #include <QByteArray>
 #include <QObject>
+#include <QQueue>
 
 class DataStreamParser : public QObject {
     Q_OBJECT;
 
    public:
-    DataStreamParser(QObject *parent = nullptr);
+    DataStreamParser(QObject* parent = nullptr);
     ~DataStreamParser();
 
-   signals:
-    void error(QString);
-    void dataReceived(QByteArray);
-    void controlWordReceived(QByteArray);
-
    public:
-    void parse(const QByteArray& data);
+    /**
+     * @brief
+     *
+     * @param data
+     * @return {data, controlWord, error}
+     */
+    std::tuple<QVector<qreal>, QQueue<QByteArray>, QQueue<QByteArray>> parse(
+        const QByteArray& data);
 
    private:
     QByteArray buffer;

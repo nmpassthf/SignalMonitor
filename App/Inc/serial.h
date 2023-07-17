@@ -13,6 +13,8 @@
 #include <QByteArray>
 #include <QComboBox>
 #include <QDialog>
+#include <QMutex>
+#include <QMutexLocker>
 #include <QPushButton>
 #include <QRunnable>
 #include <QSerialPort>
@@ -20,6 +22,7 @@
 #include <optional>
 
 #include "dataStreamParser.h"
+#include "datasource.h"
 
 struct SerialSettings {
     qint32 baudRate;
@@ -50,7 +53,7 @@ class SerialSettingsDiag : public QDialog {
     void initComboBox();
 };
 
-class SerialWorker : public QObject, public QRunnable {
+class SerialWorker : public DataSource {
     Q_OBJECT;
 
    public:
@@ -60,22 +63,20 @@ class SerialWorker : public QObject, public QRunnable {
    public:
     void setSerialSettings(SerialSettings);
 
-   protected:
-    virtual void run() override;
-
-   signals:
-    void error(QString);
-    void dataReceived(QByteArray);
-    void controlWordReceived(QByteArray);
+   public:
+    void run();
 
    public slots:
     inline void closeSerial() { isTerminateSerial = true; };
 
    private:
+    // shared data
     bool isTerminateSerial = false;
-    QSerialPort *serial;
-    DataStreamParser parser;
     SerialSettings settings;
+
+   private:
+    QSerialPort *serial;
+    DataStreamParser *parser;
 
    private:
     bool openSerial();

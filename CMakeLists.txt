@@ -20,7 +20,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets SerialPort)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets SerialPort Charts)
 
 include_directories(App/Inc)
 
@@ -48,3 +48,4 @@ add_executable(signalmonitors
 target_link_libraries(signalmonitors Qt${QT_VERSION_MAJOR}::Core)
 target_link_libraries(signalmonitors Qt${QT_VERSION_MAJOR}::Widgets)
 target_link_libraries(signalmonitors Qt${QT_VERSION_MAJOR}::SerialPort)
+target_link_libraries(signalmonitors Qt${QT_VERSION_MAJOR}::Charts)

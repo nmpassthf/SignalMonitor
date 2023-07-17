@@ -1,7 +1,7 @@
 #include "mainwindow.h"
 
 #include <QFontDatabase>
-#include <QVBoxLayout>
+#include <QHBoxLayout>
 
 #include "pch.h"
 #include "serial.h"
@@ -24,10 +24,10 @@ MainWindow::MainWindow(QWidget* parent)
 
     ui->title->setFont(QFont{"Shintyan", 40, QFont::Bold});
 
-    // Load chart widget
-    // TODO
-    ui->chartContainer->setLayout(new QVBoxLayout{});
+    // init chart widget layout
+    ui->chartContainer->setLayout(new QHBoxLayout{});
 
+    // connect push buttons
     bindPushButtons();
 
     // init thread pool
@@ -49,7 +49,7 @@ void MainWindow::closeEvent(QCloseEvent* e) {
 }
 
 void MainWindow::bindPushButtons() {
-    // 串口设置按钮
+    // serial config btn
     connect(ui->bSerialSettings, &QPushButton::clicked, this, [this]() {
         printCurrentTime() << "Serial settings button clicked" << std::endl;
         SerialSettingsDiag* serialSettingsDiag = new SerialSettingsDiag{};
@@ -69,31 +69,104 @@ void MainWindow::bindPushButtons() {
                     serialWorker->setSerialSettings(settings.value());
 
                     connect(serialWorker, &SerialWorker::error, this,
-                            &MainWindow::onSerialError);
-                    connect(serialWorker, &SerialWorker::dataReceived, this,
-                            &MainWindow::onSerialDataReceived);
+                            &MainWindow::onSourceError);
                     connect(serialWorker, &SerialWorker::controlWordReceived,
-                            this, &MainWindow::onSerialControlWordReceived);
+                            this, &MainWindow::onSourceControlWordReceived);
 
                     connect(this, &MainWindow::serialCloseRequest, serialWorker,
                             &SerialWorker::closeSerial);
 
-                    threadPool->start(serialWorker);
+                    // TODO 
+                    // threadPool->start(serialWorker);
+                    serialThread = new QThread{};
+                    serialWorker->moveToThread(serialThread);
+                    connect(serialThread, &QThread::started, serialWorker,
+                            &SerialWorker::run);
+                    serialThread->start();
                 });
 
         serialSettingsDiag->exec();
     });
 }
 
-void MainWindow::onSerialError(QString) {
-    printCurrentTime() << "Serial error" << std::endl;
+void MainWindow::onSourceError(QString errorMsg) {
+    printCurrentTime() << "Serial error:" << errorMsg.toStdString()
+                       << std::endl;
     // TODO
 }
-void MainWindow::onSerialDataReceived(QByteArray) {
-    printCurrentTime() << "Serial data received" << std::endl;
-    // TODO
+
+void MainWindow::onSourceControlWordReceived(QByteArray controlWord) {
+    printCurrentTime() << "Serial control word received"
+                       << controlWord.toStdString() << std::endl;
+
+    auto sender = getDataSourceSender();
+
+    if (controlWord == "%START") {
+        if (dataSources.contains(sender)) {
+            printCurrentTime()
+                << "Data source already exists. %START twice" << std::endl;
+            return;
+        }
+
+        auto newSeries = new MySeries{1};
+        dataSources.insert(sender, newSeries);
+
+        switch (newDataStrategy) {
+            case NewDataStrategy::ReusePlot: {
+                if (currentSelectedPlot == nullptr) {
+                    // TODO
+                    createNewPlot(sender->objectName())->show();
+                }
+
+                currentSelectedPlot->addSeries(newSeries);
+
+                // connect data source to plot
+                connect(sender, &DataSource::dataReceived, currentSelectedPlot,
+                        [this, newSeries](QVector<qreal> data) {
+                            currentSelectedPlot->addData(
+                                data, currentSelectedPlot->getSeries().indexOf(
+                                          newSeries));
+                        });
+
+                // TODO test direct tarns Series Object;
+                connect(sender, &DataSource::dataReceivedSer, newSeries,
+                        [this,newSeries](MySeries * s){
+                            currentSelectedPlot->addData(
+                                s, currentSelectedPlot->getSeries().indexOf(
+                                          newSeries))
+                        ;}
+                        );
+
+            } break;
+
+            default:
+                break;
+        }
+    }
+
+    if (controlWord.startsWith("%t")) {
+        auto timeStep = controlWord.mid(2).toDouble();
+        printCurrentTime() << "set Time step: " << timeStep << std::endl;
+
+        if (!dataSources.contains(sender)) {
+            return;
+        }
+
+        dataSources[sender]->setStep(timeStep);
+    }
+
+    // ui->chartContainer->layout()->addWidget(
+    //     new ChartWidget{"CHART_TEST", this});
+    // ui->chartContainer->layout()->addWidget(
+    //     new ChartWidget{"CHART_TEST2", this});
 }
-void MainWindow::onSerialControlWordReceived(QByteArray) {
-    printCurrentTime() << "Serial control word received" << std::endl;
-    // TODO
+
+ChartWidget* MainWindow::createNewPlot(QString title) {
+    auto newPlot = new ChartWidget{title, nullptr};
+    plots.push_back(newPlot);
+    // ui->chartContainer->layout()->addWidget(newPlot);
+
+    currentSelectedPlot = newPlot;
+
+    return newPlot;
 }
