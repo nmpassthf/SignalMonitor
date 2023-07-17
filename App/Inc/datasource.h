@@ -2,8 +2,10 @@
 #define __M_DATASOURCE_H__
 
 #include <QObject>
+#include <QPointF>
 #include <QQueue>
 #include <QTimer>
+#include <atomic>
 
 /**
  * @brief Data source for chart
@@ -21,23 +23,29 @@ class DataSource : public QObject {
 
    public slots:
     virtual void run() = 0;
+    inline void requestStopDataSource() { isTerminateSerial = true; };
 
    signals:
+    void finished();
+
     void error(QString);
     void controlWordReceived(QByteArray);
 
     // send data to chart, updated by updateData() with updateTimer
-    void dataReceived(QVector<qreal>);
+    void dataReceived(const QVector<double> x, const QVector<double> y);
 
    protected:
-    void appendData(QVector<qreal>);
+    void appendData(QVector<double> x, QVector<double> y);
+
+   protected:
+    std::atomic<bool> isTerminateSerial = false;
 
    private slots:
     void updateData();
 
    private:
     QTimer* updateTimer;
-    QVector<qreal> dataQueue;
+    QVector<double> dataX, dataY;
 };
 
 #endif /* __M_DATASOURCE_H__ */

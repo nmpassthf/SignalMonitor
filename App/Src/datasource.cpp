@@ -9,13 +9,16 @@ DataSource::DataSource(QObject* parent) : QObject{parent} {
 DataSource::~DataSource() {}
 
 void DataSource::updateData() {
-    if (dataQueue.isEmpty())
+    if (dataX.isEmpty())
         return;
 
+    emit dataReceived(dataX, dataY);
 
-    emit dataReceived(dataQueue);
-
-    dataQueue.clear();
+    dataX.clear();
+    dataY.clear();
 }
 
-void DataSource::appendData(QVector<qreal> data) { dataQueue.append(data); }
+void DataSource::appendData(QVector<double> x, QVector<double> y) {
+    dataX.append(x);
+    dataY.append(y);
+}

@@ -10,16 +10,18 @@
  *
  */
 
+#include "pch.h"
+
+// 
+
 #include <QCloseEvent>
 #include <QMap>
-#include <QThread>
-#include <QThreadPool>
 #include <QVector>
 #include <QWidget>
+#include <memory>
 
-#include "chartwidget.h"
 #include "datasource.h"
-#include "pch.h"
+#include "qcustomplot.h"
 
 namespace Ui {
 class MainWindow;
@@ -41,17 +43,17 @@ class MainWindow : public QWidget {
 
    private:
     Ui::MainWindow *ui;
-    QThreadPool *threadPool;
-    QThread* serialThread;
+    QThread *serialThread;
 
     enum class NewDataStrategy {
         ReusePlot,
         InsertAtMainWindow,
         PopUpNewWindow,
-    } newDataStrategy = NewDataStrategy::ReusePlot;
-    QVector<ChartWidget *> plots;
-    ChartWidget *currentSelectedPlot = nullptr;
-    QMap<DataSource *,MySeries* > dataSources;
+    } newDataStrategy = NewDataStrategy::PopUpNewWindow;
+
+    QVector<QCustomPlot *> popUpPlots;
+    QCustomPlot *currentSelectedPlot = nullptr;
+    QMap<DataSource*, QCPGraph *> dataSources;
 
    signals:
     void serialCloseRequest();
@@ -63,9 +65,8 @@ class MainWindow : public QWidget {
    private:
     void bindPushButtons();
 
-    void bindDataSourceToPlot(DataSource *source, ChartWidget *plot);
-
-    ChartWidget* createNewPlot(QString title);
+    QCPGraph *createNewSeries(QString title);
+    void bindDataSource(DataSource* source, QCPGraph *plot);
 };
 
 #endif /* __M_MAINWINDOW_H__ */

@@ -20,7 +20,7 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets SerialPort Charts)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets SerialPort Charts PrintSupport)
 
 include_directories(App/Inc)
 
@@ -45,7 +45,13 @@ add_executable(signalmonitors
   ${qrc_FILES}
 )
 
+target_compile_definitions(signalmonitors PRIVATE QCUSTOMPLOT_USE_OPENGL)
+
 target_link_libraries(signalmonitors Qt${QT_VERSION_MAJOR}::Core)
+target_link_libraries(signalmonitors Qt${QT_VERSION_MAJOR}::Gui)
 target_link_libraries(signalmonitors Qt${QT_VERSION_MAJOR}::Widgets)
 target_link_libraries(signalmonitors Qt${QT_VERSION_MAJOR}::SerialPort)
 target_link_libraries(signalmonitors Qt${QT_VERSION_MAJOR}::Charts)
+target_link_libraries(signalmonitors Qt${QT_VERSION_MAJOR}::PrintSupport)
+
+target_link_libraries(signalmonitors OpenGL32.lib)

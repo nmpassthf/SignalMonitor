@@ -183,9 +183,10 @@ void SerialWorker::run() {
         emit error("Can't open serial port:" + serial->errorString());
 
     auto parseDataAndSend = [&](const QByteArray &&rawData) {
-        auto [data, ctrl, err] = parser->parse(rawData);
-        if (!data.isEmpty())
-            DataSource::appendData(data);
+        auto [dataX, dataY, ctrl, err] =
+            parser->parse(rawData, DataStreamParser::SourceType::Serial);
+        if (!dataX.isEmpty())
+            DataSource::appendData(dataX, dataY);
 
         if (!ctrl.isEmpty())
             for (auto &singleCtrl : ctrl) emit controlWordReceived(singleCtrl);
@@ -236,4 +237,7 @@ void SerialWorker::run() {
     serial->close();
     delete serial;
     delete parser;
+    this->deleteLater();
+    emit finished();
+    printCurrentTime() << "SerialWorker::run() end" << std::endl;
 }

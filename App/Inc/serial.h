@@ -19,7 +19,6 @@
 #include <QRunnable>
 #include <QSerialPort>
 #include <QSerialPortInfo>
-#include <atomic>
 #include <optional>
 
 #include "dataStreamParser.h"
@@ -66,15 +65,11 @@ class SerialWorker : public DataSource {
    public:
     virtual void run() override;
 
-   public slots:
-    inline void closeSerial() { isTerminateSerial = true; };
-
    private:
     bool openSerial();
 
     // shared data
    private:
-    std::atomic<bool> isTerminateSerial = false;
     SerialSettings settings;
 
     // private non-shared data
