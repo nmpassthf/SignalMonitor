@@ -19,6 +19,7 @@
 #include <QRunnable>
 #include <QSerialPort>
 #include <QSerialPortInfo>
+#include <atomic>
 #include <optional>
 
 #include "dataStreamParser.h"
@@ -60,26 +61,27 @@ class SerialWorker : public DataSource {
     SerialWorker(QObject *parent = nullptr);
     ~SerialWorker();
 
-   public:
     void setSerialSettings(SerialSettings);
 
    public:
-    void run();
+    virtual void run() override;
 
    public slots:
     inline void closeSerial() { isTerminateSerial = true; };
 
    private:
+    bool openSerial();
+
     // shared data
-    bool isTerminateSerial = false;
+   private:
+    std::atomic<bool> isTerminateSerial = false;
     SerialSettings settings;
 
+    // private non-shared data
    private:
     QSerialPort *serial;
     DataStreamParser *parser;
-
-   private:
-    bool openSerial();
+    QMutex mutex;
 };
 
 #endif /* __M_SERIAL_H__ */

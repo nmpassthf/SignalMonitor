@@ -91,7 +91,7 @@ void SerialSettingsDiag::initComboBox() {
     cActivatedPort->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
     auto ports = QSerialPortInfo::availablePorts();
-    for (auto& port : ports) {
+    for (auto &port : ports) {
         cActivatedPort->addItem(port.portName());
     }
 
@@ -147,6 +147,7 @@ SerialWorker::~SerialWorker() {
 }
 
 void SerialWorker::setSerialSettings(SerialSettings settings) {
+    QMutexLocker locker{&mutex};
     this->settings = settings;
 }
 
@@ -168,26 +169,29 @@ void SerialWorker::run() {
 
     serial = new QSerialPort{};
 
-    serial->setBaudRate(settings.baudRate);
-    serial->setStopBits(settings.stopBits);
-    serial->setDataBits(settings.dataBits);
-    serial->setParity(settings.parity);
-    serial->setFlowControl(settings.flowControl);
-    serial->setPort(settings.port);
+    {
+        QMutexLocker locker{&mutex};
+        serial->setBaudRate(settings.baudRate);
+        serial->setStopBits(settings.stopBits);
+        serial->setDataBits(settings.dataBits);
+        serial->setParity(settings.parity);
+        serial->setFlowControl(settings.flowControl);
+        serial->setPort(settings.port);
+    }
 
     if (!openSerial())
-        emit error("Can't open serial port");
+        emit error("Can't open serial port:" + serial->errorString());
 
     auto parseDataAndSend = [&](const QByteArray &&rawData) {
         auto [data, ctrl, err] = parser->parse(rawData);
         if (!data.isEmpty())
-            appendData(data);
+            DataSource::appendData(data);
 
         if (!ctrl.isEmpty())
-            for (auto& singleCtrl : ctrl) emit controlWordReceived(singleCtrl);
+            for (auto &singleCtrl : ctrl) emit controlWordReceived(singleCtrl);
 
         if (!err.isEmpty())
-            for (auto& singleErr : err) emit error(singleErr);
+            for (auto &singleErr : err) emit error(singleErr);
     };
 
     bool isStart = false;

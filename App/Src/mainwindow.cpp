@@ -76,7 +76,7 @@ void MainWindow::bindPushButtons() {
                     connect(this, &MainWindow::serialCloseRequest, serialWorker,
                             &SerialWorker::closeSerial);
 
-                    // TODO 
+                    // TODO
                     // threadPool->start(serialWorker);
                     serialThread = new QThread{};
                     serialWorker->moveToThread(serialThread);
@@ -115,7 +115,18 @@ void MainWindow::onSourceControlWordReceived(QByteArray controlWord) {
             case NewDataStrategy::ReusePlot: {
                 if (currentSelectedPlot == nullptr) {
                     // TODO
-                    createNewPlot(sender->objectName())->show();
+                    auto newPlot = createNewPlot(sender->objectName());
+                    newPlot->show();
+                    currentSelectedPlot = newPlot;
+                    connect(newPlot, &ChartWidget::closed, this,
+                            [this,sender](ChartWidget* plot) {
+                                plots.removeOne(plot);
+                                if (currentSelectedPlot == plot) {
+                                    currentSelectedPlot = plots.isEmpty() ? nullptr : plots.last();
+                                }
+
+                                sender->deleteLater();
+                            });
                 }
 
                 currentSelectedPlot->addSeries(newSeries);
@@ -123,20 +134,14 @@ void MainWindow::onSourceControlWordReceived(QByteArray controlWord) {
                 // connect data source to plot
                 connect(sender, &DataSource::dataReceived, currentSelectedPlot,
                         [this, newSeries](QVector<qreal> data) {
+                            if (currentSelectedPlot == nullptr) {
+                                return;
+                            }
+
                             currentSelectedPlot->addData(
                                 data, currentSelectedPlot->getSeries().indexOf(
                                           newSeries));
                         });
-
-                // TODO test direct tarns Series Object;
-                connect(sender, &DataSource::dataReceivedSer, newSeries,
-                        [this,newSeries](MySeries * s){
-                            currentSelectedPlot->addData(
-                                s, currentSelectedPlot->getSeries().indexOf(
-                                          newSeries))
-                        ;}
-                        );
-
             } break;
 
             default:

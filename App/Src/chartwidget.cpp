@@ -94,6 +94,9 @@ ChartWidget::ChartWidget(QString title, QWidget* parent) : QWidget(parent) {
 
     currentLayout->addWidget(new QLabel{title, this});
     currentLayout->addWidget(chartView);
+
+    threadPool = new QThreadPool{this};
+    threadPool->setMaxThreadCount(1);
 }
 ChartWidget::~ChartWidget() {}
 
@@ -106,55 +109,101 @@ void ChartWidget::addSeries(MySeries* series) {
 
     chart->createDefaultAxes();
 }
+bool ChartWidget::removeSeries(MySeries* series) {
+    if (!this->series.contains(series))
+        return false;
+
+    this->series.removeOne(series);
+    chart->removeSeries(series);
+
+    return true;
+}
 qreal ChartWidget::getStep(qsizetype index) { return series[index]->getStep(); }
 
-void ChartWidget::addData(qreal y, qsizetype index) {
-    auto currentSeries = series[index];
-
-    currentSeries->pushAStep(y);
-
-    chart->axes(Qt::Horizontal).first()->setRange(0, currentSeries->getMaxX());
-    auto [min, max] = currentSeries->getMinMaxY();
-    chart->axes(Qt::Vertical).first()->setRange(min, max);
-}
 void ChartWidget::addData(QVector<qreal> y, qsizetype index) {
     auto currentSeries = series[index];
 
-    // for (auto& dataPoint : y) {
-    //     currentSeries->pushAStep(dataPoint);
-    // }
-    static qreal x = 0;
-    QVector<QPointF> points;
-    for (auto& dataPoint : y) {
-        points.append({x, dataPoint});
-        x++;
+    // TODO 工作线程中返回旧折线图对象和新折线图对象，旧折线图对象在主线程中删除
+
+    if (pendingData.contains(currentSeries)) {
+        pendingData[currentSeries].append(y);
+    } else {
+        pendingData.insert(currentSeries, y);
     }
-    currentSeries->pushAStep(points);
-    // TODO 优化 一次性添加多个点 将x点更新位置改为源头处更新
 
-
-    chart->axes(Qt::Horizontal).first()->setRange(0, currentSeries->getMaxX());
-    auto [min, max] = currentSeries->getMinMaxY();
-    chart->axes(Qt::Vertical).first()->setRange(min, max);
-}
-
-void ChartWidget::addData(MySeries* s, qsizetype index) {
-    if(index != -1){auto oldSeries = series[index];
-    series[index] = s;
-    oldSeries->deleteLater();
-    chart->removeSeries(oldSeries);
-}
-    chart->addSeries(s);
-
-    
-
-
-
-    chart->axes(Qt::Horizontal).first()->setRange(0, s->getMaxX());
-    auto [min, max] = s->getMinMaxY();
-    chart->axes(Qt::Vertical).first()->setRange(min, max);
+    updatePendingData();
 }
 
 void ChartWidget::setStep(qreal step, qsizetype index) {
     series[index]->setStep(step);
+}
+
+void ChartWidget::closeEvent(QCloseEvent* event) {
+    // if (thread != nullptr) {
+    //     thread->quit();
+    //     thread->wait();
+    //     delete thread;
+    //     thread = nullptr;
+    // }
+
+    // for (auto worker : workers) {
+    //     delete worker;
+    // }
+
+    // workers.clear();
+
+    // emit closed(this);;
+
+    // TODO
+}
+
+void ChartWidget::onAddDataThreadDone(MySeries* newSeries,
+                                      MySeries const* oldSeries) {
+    auto allSeries = chart->series();
+
+    removeSeries(const_cast<MySeries*>(oldSeries));
+
+    if (pendingData.contains(const_cast<MySeries*>(oldSeries))) {
+        auto y = pendingData[const_cast<MySeries*>(oldSeries)];
+        pendingData.remove(const_cast<MySeries*>(oldSeries));
+
+        pendingData.insert(newSeries, y);
+    }
+
+    addSeries(newSeries);
+    chart->createDefaultAxes();
+
+    chart->axes(Qt::Horizontal).first()->setRange(0, newSeries->getMaxX());
+    auto [min, max] = newSeries->getMinMaxY();
+    chart->axes(Qt::Vertical).first()->setRange(min, max);
+
+    isThreadDone = true;
+
+    updatePendingData();
+}
+
+void ChartWidget::updatePendingData() {
+    if (threadPool->activeThreadCount() != 0 || !isThreadDone)
+        return;
+
+    if (pendingData.isEmpty())
+        return;
+
+    auto currentSeries = pendingData.firstKey();
+    auto y = pendingData[currentSeries];
+    pendingData.remove(currentSeries);
+
+    auto newSeries = new MySeries(currentSeries->getStep());
+
+    for(const auto& p : currentSeries->points()) {
+        newSeries->append(p);
+    }
+
+    SeriesInsertDataWorker* worker = new SeriesInsertDataWorker{
+        newSeries, currentSeries, currentSeries->points(), y};
+    connect(worker, &SeriesInsertDataWorker::done, this,
+            &ChartWidget::onAddDataThreadDone);
+
+    threadPool->start(worker);
+    isThreadDone = false;
 }
