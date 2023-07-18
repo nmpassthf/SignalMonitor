@@ -3,6 +3,7 @@
 #include <QFontDatabase>
 #include <QHBoxLayout>
 
+#include "fftdatasource.h"
 #include "pch.h"
 #include "serial.h"
 #include "ui_mainwindow.h"
@@ -60,61 +61,85 @@ void MainWindow::bindPushButtons() {
         printCurrentTime() << "Serial settings button clicked" << std::endl;
         SerialSettingsDiag* serialSettingsDiag = new SerialSettingsDiag{};
 
-        connect(serialSettingsDiag, &SerialSettingsDiag::settingsReceived, this,
-                [this](std::optional<SerialSettings> settings) {
-                    if (!settings.has_value()) {
-                        printCurrentTime()
-                            << "Serial settings not received" << std::endl;
-                        return;
-                    }
-
+        connect(
+            serialSettingsDiag, &SerialSettingsDiag::settingsReceived, this,
+            [this](std::optional<SerialSettings> settings) {
+                if (!settings.has_value()) {
                     printCurrentTime()
-                        << "Serial settings received" << std::endl;
+                        << "Serial settings not received" << std::endl;
+                    return;
+                }
 
-                    auto serialWorker = new SerialWorker{};
-                    serialWorker->setSerialSettings(settings.value());
+                printCurrentTime() << "Serial settings received" << std::endl;
 
-                    connect(serialWorker, &SerialWorker::error, this,
-                            &MainWindow::onSourceError);
-                    connect(serialWorker, &SerialWorker::controlWordReceived,
-                            this, &MainWindow::onSourceControlWordReceived);
-                    connect(serialWorker, &DataSource::finished, this,
-                            [this, serialWorker]() {
-                                if (serialThread->isRunning()) {
-                                    serialThread->quit();
-                                    serialThread->wait();
-                                    serialThread->deleteLater();
-                                    serialThread = nullptr;
-                                }
+                auto serialWorker = new SerialWorker{};
+                serialWorker->setSerialSettings(settings.value());
 
-                                isDataSourceRunning[serialWorker] = false;
+                connect(serialWorker, &SerialWorker::error, this,
+                        &MainWindow::onSourceError);
+                connect(serialWorker, &SerialWorker::controlWordReceived, this,
+                        &MainWindow::onSourceControlWordReceived);
+                connect(serialWorker, &DataSource::finished, this,
+                        [this, serialWorker]() {
+                            if (serialThread->isRunning()) {
+                                serialThread->quit();
+                                serialThread->wait();
+                                serialThread->deleteLater();
+                                serialThread = nullptr;
+                            }
 
-                                printCurrentTime()
-                                    << "Serial thread finished" << std::endl;
-                            });
+                            isDataSourceRunning[serialWorker] = false;
 
-                    connect(this, &MainWindow::serialCloseRequest, serialWorker,
-                            &DataSource::requestStopDataSource);
+                            printCurrentTime()
+                                << "Serial thread finished" << std::endl;
+                        });
 
-                    auto newPlot =
-                        createNewSeries("Serial", {QColor{0x26, 0xa1, 0xe0}});
-                    bindDataSource(serialWorker, newPlot);
+                connect(this, &MainWindow::serialCloseRequest, serialWorker,
+                        &DataSource::requestStopDataSource);
 
-                    // TODO FFT plot
-                    newPlot =  createNewSeries("FFT", {QColor{0xfe,0x5a,0x5b}});
-                    // bindDataSource(,newPlot)
+                auto newPlot =
+                    createNewSeries("Serial", {QColor{0x26, 0xa1, 0xe0}});
+                bindDataSource(serialWorker, newPlot);
 
-                    if (serialThread == nullptr)
-                        serialThread = new QThread{this};
+                // TODO FFT plot
 
-                    connect(serialThread, &QThread::started, serialWorker,
-                            &SerialWorker::run);
-                    connect(serialThread, &QThread::finished, serialWorker,
-                            &SerialWorker::deleteLater);
-                    serialWorker->moveToThread(serialThread);
-                    serialThread->start();
-                    isDataSourceRunning[serialWorker] = true;
-                });
+                NewDataStrategy old = newDataStrategy;
+                newDataStrategy = NewDataStrategy::PopUpNewWindow;
+                newPlot = createNewSeries("FFT", {QColor{0xfe, 0x5a, 0x5b}});
+                auto fftSource = new FFTDataSource{serialWorker};
+                dataSources.insert(fftSource, newPlot);
+                connect(fftSource, &DataSource::dataReceived, this,
+                        [this, newPlot](const QVector<double> x,
+                                        const QVector<double> y) {
+                            newPlot->setData(x, y, true);
+
+                            newPlot->rescaleAxes();
+
+                            newPlot->parentPlot()->replot();
+                        });
+                newDataStrategy = old;
+
+                if (serialThread == nullptr)
+                    serialThread = new QThread{this};
+
+                connect(serialThread, &QThread::started, serialWorker,
+                        &DataSource::run);
+                connect(serialThread, &QThread::finished, serialWorker,
+                        &SerialWorker::deleteLater);
+                serialWorker->moveToThread(serialThread);
+                serialThread->start();
+
+                // TODO FFT plot
+                auto th = new QThread{this};
+
+                connect(th, &QThread::started, fftSource, &DataSource::run);
+                connect(th, &QThread::finished, fftSource,
+                        &FFTDataSource ::deleteLater);
+                fftSource->moveToThread(th);
+                th->start();
+
+                isDataSourceRunning[serialWorker] = true;
+            });
 
         serialSettingsDiag->exec();
     });
@@ -144,6 +169,18 @@ QCPGraph* MainWindow::createNewSeries(QString title, QPen color) {
         } break;
         case NewDataStrategy::PopUpNewWindow: {
             auto newPlot = new QCustomPlot{};
+
+            newPlot->setOpenGl(true);
+            newPlot->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
+            newPlot->setAntialiasedElement(QCP::aeAll);
+            newPlot->axisRect()->setRangeZoom(Qt::Horizontal);
+            connect(newPlot, &QCustomPlot::beforeReplot, this, [newPlot]() {
+                // zoom y to Fix screen.
+                for (int i = 0; i != newPlot->graphCount(); ++i) {
+                    newPlot->graph(i)->rescaleValueAxis(false, true);
+                }
+            });
+
             newPlot->setWindowTitle(title);
             newPlot->show();
 
