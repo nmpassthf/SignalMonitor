@@ -165,9 +165,32 @@ void SerialWorker::run() {
     printCurrentTime() << "SerialWorker::run() @" << QThread::currentThreadId()
                        << std::endl;
 
-    parser = new DataStreamParser{};
+    bool isStoped = false;
 
-    serial = new QSerialPort{};
+    parser = new DataStreamParser{this};
+
+    serial = new QSerialPort{this};
+
+    auto tagToExit = [&]() {
+        if (!(isStoped = !isStoped))
+            return;
+
+        requestStopDataSource();
+        emit finished();
+        printCurrentTime() << "SerialWorker::run() end" << std::endl;
+    };
+
+    connect(serial, &QSerialPort::aboutToClose, this,
+            &SerialWorker::requestStopDataSource);
+
+    connect(serial, &QSerialPort::errorOccurred, this,
+            [this, tagToExit](QSerialPort::SerialPortError e) {
+                if (e == QSerialPort::NoError || e == QSerialPort::TimeoutError)
+                    return;
+
+                emit error(serial->errorString());
+                tagToExit();
+            });
 
     {
         QMutexLocker locker{&mutex};
@@ -179,8 +202,11 @@ void SerialWorker::run() {
         serial->setPort(settings.port);
     }
 
-    if (!openSerial())
+    if (!openSerial()) {
         emit error("Can't open serial port:" + serial->errorString());
+        tagToExit();
+        return;
+    }
 
     auto parseDataAndSend = [&](const QByteArray &&rawData) {
         auto [dataX, dataY, ctrl, err] =
@@ -192,12 +218,17 @@ void SerialWorker::run() {
             for (auto &singleCtrl : ctrl) emit controlWordReceived(singleCtrl);
 
         if (!err.isEmpty())
-            for (auto &singleErr : err) emit error(singleErr);
+            for (auto &singleErr : err) {
+                emit error(singleErr);
+                tagToExit();
+                return;
+            }
     };
 
     bool isStart = false;
     auto detectSerialStartFlag = [&]() {
         QByteArray inputBuffer{};
+        QCoreApplication::processEvents();
         while (!isStart) {
             QCoreApplication::processEvents();
 
@@ -209,6 +240,7 @@ void SerialWorker::run() {
                 continue;
 
             inputBuffer.append(serial->readAll());
+
             if (!inputBuffer.contains("%START")) {
                 inputBuffer = inputBuffer.last(
                     inputBuffer.size() < 5 ? inputBuffer.size() : 5);
@@ -221,11 +253,14 @@ void SerialWorker::run() {
     };
 
     while (!isTerminateSerial && serial->isOpen()) {
-        if (!isStart)
-            detectSerialStartFlag();
-
         // process events
         QCoreApplication::processEvents();
+
+        if(isTerminateSerial)
+            break;
+
+        if (!isStart)
+            detectSerialStartFlag();
 
         if (!serial->waitForReadyRead(200))
             continue;
@@ -233,11 +268,6 @@ void SerialWorker::run() {
         parseDataAndSend(serial->readAll());
     }
 
-    // end of work
+    tagToExit();
     serial->close();
-    delete serial;
-    delete parser;
-    this->deleteLater();
-    emit finished();
-    printCurrentTime() << "SerialWorker::run() end" << std::endl;
 }

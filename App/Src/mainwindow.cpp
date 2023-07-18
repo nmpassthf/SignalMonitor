@@ -25,15 +25,25 @@ MainWindow::MainWindow(QWidget* parent)
     // connect push buttons
     bindPushButtons();
 
-    serialThread = new QThread{this};
-
     ui->mainPlotWidget->setOpenGl(true);
+    ui->mainPlotWidget->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
+    ui->mainPlotWidget->setAntialiasedElement(QCP::aeAll);
+    ui->mainPlotWidget->axisRect()->setRangeZoom(Qt::Horizontal);
+    connect(ui->mainPlotWidget, &QCustomPlot::beforeReplot, this, [this]() {
+        // zoom y to Fix screen.
+        for (int i = 0; i != ui->mainPlotWidget->graphCount(); ++i) {
+            ui->mainPlotWidget->graph(i)->rescaleValueAxis(false, true);
+        }
+    });
 }
 
 MainWindow::~MainWindow() {
     delete ui;
-    serialThread->quit();
-    serialThread->wait();
+
+    if (serialThread != nullptr) {
+        serialThread->quit();
+        serialThread->wait();
+    }
 }
 
 void MainWindow::closeEvent(QCloseEvent* e) {
@@ -50,52 +60,69 @@ void MainWindow::bindPushButtons() {
         printCurrentTime() << "Serial settings button clicked" << std::endl;
         SerialSettingsDiag* serialSettingsDiag = new SerialSettingsDiag{};
 
-        connect(
-            serialSettingsDiag, &SerialSettingsDiag::settingsReceived, this,
-            [this](std::optional<SerialSettings> settings) {
-                if (!settings.has_value()) {
+        connect(serialSettingsDiag, &SerialSettingsDiag::settingsReceived, this,
+                [this](std::optional<SerialSettings> settings) {
+                    if (!settings.has_value()) {
+                        printCurrentTime()
+                            << "Serial settings not received" << std::endl;
+                        return;
+                    }
+
                     printCurrentTime()
-                        << "Serial settings not received" << std::endl;
-                    return;
-                }
+                        << "Serial settings received" << std::endl;
 
-                printCurrentTime() << "Serial settings received" << std::endl;
+                    auto serialWorker = new SerialWorker{};
+                    serialWorker->setSerialSettings(settings.value());
 
-                auto serialWorker = new SerialWorker{};
-                serialWorker->setSerialSettings(settings.value());
+                    connect(serialWorker, &SerialWorker::error, this,
+                            &MainWindow::onSourceError);
+                    connect(serialWorker, &SerialWorker::controlWordReceived,
+                            this, &MainWindow::onSourceControlWordReceived);
+                    connect(serialWorker, &DataSource::finished, this,
+                            [this, serialWorker]() {
+                                if (serialThread->isRunning()) {
+                                    serialThread->quit();
+                                    serialThread->wait();
+                                    serialThread->deleteLater();
+                                    serialThread = nullptr;
+                                }
 
-                connect(serialWorker, &SerialWorker::error, this,
-                        &MainWindow::onSourceError);
-                connect(serialWorker, &SerialWorker::controlWordReceived, this,
-                        &MainWindow::onSourceControlWordReceived);
-                connect(serialWorker, &DataSource::finished, this, [this]() {
-                    serialThread->quit();
-                    serialThread->wait();
-                    serialThread->deleteLater();
-                    serialThread = nullptr;
+                                isDataSourceRunning[serialWorker] = false;
 
-                    printCurrentTime() << "Serial thread finished" << std::endl;
+                                printCurrentTime()
+                                    << "Serial thread finished" << std::endl;
+                            });
+
+                    connect(this, &MainWindow::serialCloseRequest, serialWorker,
+                            &DataSource::requestStopDataSource);
+
+                    auto newPlot =
+                        createNewSeries("Serial", {QColor{0x26, 0xa1, 0xe0}});
+                    bindDataSource(serialWorker, newPlot);
+
+                    // TODO FFT plot
+                    newPlot =  createNewSeries("FFT", {QColor{0xfe,0x5a,0x5b}});
+                    // bindDataSource(,newPlot)
+
+                    if (serialThread == nullptr)
+                        serialThread = new QThread{this};
+
+                    connect(serialThread, &QThread::started, serialWorker,
+                            &SerialWorker::run);
+                    connect(serialThread, &QThread::finished, serialWorker,
+                            &SerialWorker::deleteLater);
+                    serialWorker->moveToThread(serialThread);
+                    serialThread->start();
+                    isDataSourceRunning[serialWorker] = true;
                 });
-
-                connect(this, &MainWindow::serialCloseRequest, serialWorker,
-                        &DataSource::requestStopDataSource);
-
-                auto newPlot = createNewSeries("Serial");
-                bindDataSource(serialWorker, newPlot);
-
-                connect(serialThread, &QThread::started, serialWorker,
-                        &SerialWorker::run);
-                serialWorker->moveToThread(serialThread);
-                serialThread->start();
-            });
 
         serialSettingsDiag->exec();
     });
 }
 
 void MainWindow::onSourceError(QString errorMsg) {
-    printCurrentTime() << "Serial error:" << errorMsg.toStdString()
-                       << std::endl;
+    printCurrentTime() << "Serial error:"
+                       << errorMsg.toLocal8Bit().toStdString() << std::endl;
     // TODO
 }
 
@@ -104,7 +131,7 @@ void MainWindow::onSourceControlWordReceived(QByteArray controlWord) {
                        << controlWord.toStdString() << std::endl;
 }
 
-QCPGraph* MainWindow::createNewSeries(QString title) {
+QCPGraph* MainWindow::createNewSeries(QString title, QPen color) {
     QCPGraph* rSeries = nullptr;
 
     switch (newDataStrategy) {
@@ -135,6 +162,9 @@ QCPGraph* MainWindow::createNewSeries(QString title) {
             break;
     }
 
+    rSeries->setScatterStyle(QCPScatterStyle{QCPScatterStyle::ssCircle, 5});
+    rSeries->setPen(color);
+
     return rSeries;
 }
 
@@ -146,6 +176,6 @@ void MainWindow::bindDataSource(DataSource* source, QCPGraph* series) {
 
                 series->rescaleAxes();
 
-                currentSelectedPlot->replot();
+                series->parentPlot()->replot();
             });
 }

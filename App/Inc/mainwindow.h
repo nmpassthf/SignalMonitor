@@ -43,17 +43,18 @@ class MainWindow : public QWidget {
 
    private:
     Ui::MainWindow *ui;
-    QThread *serialThread;
+    QThread *serialThread = nullptr;
 
     enum class NewDataStrategy {
         ReusePlot,
         InsertAtMainWindow,
         PopUpNewWindow,
-    } newDataStrategy = NewDataStrategy::PopUpNewWindow;
+    } newDataStrategy = NewDataStrategy::InsertAtMainWindow;
 
     QVector<QCustomPlot *> popUpPlots;
     QCustomPlot *currentSelectedPlot = nullptr;
     QMap<DataSource*, QCPGraph *> dataSources;
+    QMap<DataSource*, bool> isDataSourceRunning;
 
    signals:
     void serialCloseRequest();
@@ -65,7 +66,7 @@ class MainWindow : public QWidget {
    private:
     void bindPushButtons();
 
-    QCPGraph *createNewSeries(QString title);
+    QCPGraph *createNewSeries(QString title,QPen color);
     void bindDataSource(DataSource* source, QCPGraph *plot);
 };
 
