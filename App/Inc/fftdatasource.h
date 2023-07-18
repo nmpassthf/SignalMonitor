@@ -7,6 +7,8 @@
 class FFTDataSource : public DataSource {
     Q_OBJECT;
 
+    constexpr static auto defalultFFTSize = 1024;
+
    public:
     explicit FFTDataSource(DataSource const* otherRegularSource,
                            QObject* parent = nullptr);
@@ -18,7 +20,7 @@ class FFTDataSource : public DataSource {
 
    private:
     qreal step = 0;
-    uint32_t fftSize = 1024;
+    uint32_t fftSize = defalultFFTSize;
     ComplexArray dataset;
     bool isDataUpdated = false;
 };

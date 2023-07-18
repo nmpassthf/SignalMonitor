@@ -22,7 +22,7 @@ FFTDataSource::FFTDataSource(DataSource const* otherRegularSource,
 
     connect(otherRegularSource, &DataSource::controlWordReceived, this,
             [this](QByteArray ctrl) {
-                if (ctrl.contains("%t")) {
+                if (ctrl.startsWith("%t")) {
                     this->step = ctrl.mid(2).toDouble();
                 }
             });
@@ -48,13 +48,26 @@ void FFTDataSource::run() {
         QVector<double> x, y;
         x.reserve(fftResult.size());
         y.reserve(fftResult.size());
-        uint64_t i = 0;
-        for (auto const& cDouble : fftResult) {
-            x.append(1e6 * (i++) / step);
-            y.append(std::pow(
-                std::pow(cDouble.real(), 2) + std::pow(cDouble.imag(), 2),
-                0.5));
+
+        uint64_t i;
+
+        auto xVal = [&i, this](auto it) {
+            return 1e6 * (i++) / step / fftSize;
+        };
+        auto yVal = [this](auto it) {
+            return std::pow(std::pow(it->real(), 2) + std::pow(it->imag(), 2),
+                            0.5) /
+                   (fftSize / 2);
+        };
+
+        i = 0;
+        for (auto pIt = fftResult.cbegin();
+             pIt != fftResult.cend() - fftSize / 2; ++pIt) {
+            x.append(xVal(pIt));
+            y.append(yVal(pIt));
         }
+
+        y[0] /= 2;
 
         appendData(x, y);
         QApplication::processEvents();
