@@ -25,17 +25,6 @@ MainWindow::MainWindow(QWidget* parent)
 
     // connect push buttons
     bindPushButtons();
-
-    ui->mainPlotWidget->setOpenGl(true);
-    ui->mainPlotWidget->setInteractions(QCP::iRangeDrag | QCP::iRangeZoom);
-    ui->mainPlotWidget->setAntialiasedElement(QCP::aeAll);
-    ui->mainPlotWidget->axisRect()->setRangeZoom(Qt::Horizontal);
-    connect(ui->mainPlotWidget, &QCustomPlot::beforeReplot, this, [this]() {
-        // zoom y to Fix screen.
-        for (int i = 0; i != ui->mainPlotWidget->graphCount(); ++i) {
-            ui->mainPlotWidget->graph(i)->rescaleValueAxis(false, true);
-        }
-    });
 }
 
 MainWindow::~MainWindow() {

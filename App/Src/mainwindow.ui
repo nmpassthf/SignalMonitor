@@ -31,7 +31,7 @@
     </widget>
    </item>
    <item>
-    <widget class="QCustomPlot" name="mainPlotWidget" native="true"/>
+    <widget class="CustomPlot" name="mainPlotWidget" native="true"/>
    </item>
    <item>
     <widget class="QPushButton" name="bSerialSettings">
@@ -69,9 +69,9 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>QCustomPlot</class>
+   <class>CustomPlot</class>
    <extends>QWidget</extends>
-   <header location="global">qcustomplot.h</header>
+   <header location="global">mycustomplot.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

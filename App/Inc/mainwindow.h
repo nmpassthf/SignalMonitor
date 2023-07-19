@@ -21,7 +21,7 @@
 #include <memory>
 
 #include "datasource.h"
-#include "qcustomplot.h"
+#include "mycustomplot.h"
 
 namespace Ui {
 class MainWindow;
