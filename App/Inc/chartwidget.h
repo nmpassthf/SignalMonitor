@@ -1,12 +1,13 @@
 #ifndef __M_CHARTWIDGET_H__
 #define __M_CHARTWIDGET_H__
 
+#include <pch.h>
+
 #include <QPair>
 #include <QPoint>
 #include <QVector>
 #include <QWidget>
 
-#include <pch.h>
 #include "datasource.h"
 #include "mycustomplot.h"
 
@@ -37,6 +38,7 @@ class ChartWidget : public QWidget {
     QPair<int, int> getSubplotCount() const;
 
     QPoint getAvailablePos() const;
+    QPoint getPlotPos(CustomPlot* plot) const;
 
     bool isDataSourceExist(DataSource::DSID id) const;
 

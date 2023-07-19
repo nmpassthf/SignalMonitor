@@ -66,7 +66,7 @@ class MainWindow : public QWidget {
      * @return QCPGraph* Series Object
      */
     QCPGraph *createNewPlot(DataSource *source, QString title, QPen color,
-                            NewDataStrategy strategy);
+                            NewDataStrategy strategy, QPoint pos = {-1, -1});
     void bindDataSource(DataSource *source, QCPGraph *series);
 
     void createSerialDataSource(SerialSettings settings,

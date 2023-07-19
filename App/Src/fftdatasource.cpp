@@ -69,10 +69,9 @@ void FFTDataSource::run() {
 
         y[0] /= 2;
 
-        appendData(x, y);
         emit controlWordReceived(DataControlWords::ClearDatas);
         clearQueuedData();
-        QApplication::processEvents();
+        appendData(x, y);
     }
 
     emit finished();

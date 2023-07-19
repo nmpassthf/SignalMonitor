@@ -1,11 +1,42 @@
+
 #include "mycustomplot.h"
+
+#include <qlabel.h>
+
+#include <QMouseEvent>
+#include <QTimer>
+
+#include "globalSettings.h"
+
+DataLabel::DataLabel(QWidget* parent) : QLabel{parent} {
+    setAlignment(Qt::AlignCenter);
+
+    // 禁用鼠标事件
+    setAttribute(Qt::WA_TransparentForMouseEvents);
+}
+DataLabel::~DataLabel() {}
+void DataLabel::setData(double data) {
+    setText(QString::number(data));
+    // 设置宽度足够显示
+    adjustSize();
+}
 
 CustomPlot::CustomPlot(QWidget* parent) : QCustomPlot{parent} {
     initChart();
-    initAxis();
+    initAxis({});
     initSeries();
 
-    setOpenGl(true);
+    if (g_isUsingOpenGL) {
+        setOpenGl(true);
+
+        // 定期replot避免OpenGl导致显示错误
+        QTimer* timer = new QTimer(this);
+        connect(timer, &QTimer::timeout, this, [this]() { replot(); });
+        timer->start(1000 / 60);
+    }
+
+    dataLabel = new DataLabel{this};
+    dataLabel->hide();
 }
 CustomPlot::~CustomPlot() {}
 
@@ -48,6 +79,8 @@ QCPGraph* CustomPlot::addDataSource(DataSource::DSID id) {
 
     auto graph = addGraph();
 
+    graph->setSelectable(QCP::stNone);
+
     sourceToGraphMap.insert(id, graph);
 
     return graph;
@@ -85,23 +118,55 @@ bool CustomPlot::isDataSourceExist(DataSource::DSID id) const {
 
 void CustomPlot::initChart() {
     setBackground(QBrush{QColor{Qt::GlobalColor::white}});
-    setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectAxes |
-                    QCP::iSelectLegend | QCP::iSelectPlottables);
 
-    setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectItems);
+    setInteractions(QCP::iRangeDrag | QCP::iRangeZoom | QCP::iSelectPlottables);
     setAntialiasedElement(QCP::aeAll);
     axisRect()->setRangeZoom(Qt::Horizontal);
+
     connect(this, &QCustomPlot::beforeReplot, this, [this]() {
         // zoom y to Fix screen.
         for (int i = 0; i != graphCount(); ++i) {
             graph(i)->rescaleValueAxis(false, true);
         }
     });
+
+    connect(this, &QCustomPlot::mouseMove, this, [this](QMouseEvent* event) {
+        QVariant variant;
+        graph()->selectTest(event->pos(), false, &variant);
+        auto res = static_cast<QCPDataSelection*>(variant.data());
+
+        // show data label move with mouse
+        if (res != nullptr && res->dataPointCount() > 0) {
+            auto dataIndex = res->dataRange().begin();
+            auto dataValue = graph()->data()->at(dataIndex)->value;
+            auto dataPos = graph()->dataPixelPosition(dataIndex);
+
+            dataLabel->setData(dataValue);
+
+            auto xAxisRect = plotLayout()->elements(false).first()->rect();
+            auto currentY = dataPos.y();
+            if (currentY + dataLabel->height() >
+                xAxisRect.y() + xAxisRect.height())
+                currentY =
+                    xAxisRect.y() + xAxisRect.height() - dataLabel->height();
+            dataLabel->move(dataPos.x() + 5, currentY);
+
+            dataLabel->raise();
+
+            if (dataLabel->isHidden())
+                dataLabel->show();
+        }
+    });
 }
 
-void CustomPlot::initAxis() {
-    xAxis->setLabel("x: time (us)");
-    yAxis->setLabel("y");
+void CustomPlot::initAxis(QStringList axesLabel) {
+    if (axesLabel.isEmpty())
+        axesLabel = {"x", "y"};
+    xAxis->setLabel(axesLabel[0]);
+    yAxis->setLabel(axesLabel[1]);
+
+    xAxis->setUpperEnding(QCPLineEnding::esSpikeArrow);
+    yAxis->setUpperEnding(QCPLineEnding::esSpikeArrow);
 }
 
 void CustomPlot::initSeries() {

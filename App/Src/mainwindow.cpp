@@ -73,7 +73,8 @@ void MainWindow::bindPushButtons() {
 
                     printCurrentTime() << "Serial settings received";
 
-                    createSerialDataSource(settings.value(), PopUpNewWindow);
+                    createSerialDataSource(settings.value(),
+                                           InsertAtMainWindow);
                 });
 
         serialSettingsDiag->exec();
@@ -93,7 +94,8 @@ void MainWindow::onSourceControlWordReceived(
 }
 
 QCPGraph* MainWindow::createNewPlot(DataSource* source, QString title,
-                                    QPen color, NewDataStrategy strategy) {
+                                    QPen color, NewDataStrategy strategy,
+                                    QPoint pos) {
     CustomPlot* rPlot = nullptr;
     QCPGraph* rSeries = nullptr;
 
@@ -104,7 +106,7 @@ QCPGraph* MainWindow::createNewPlot(DataSource* source, QString title,
             }
 
             std::tie(rPlot, rSeries) =
-                currentSelectedPlot->addPlot(source->getId());
+                currentSelectedPlot->addPlot(source->getId(), pos);
 
         } break;
         case PopUpNewWindow: {
@@ -114,15 +116,19 @@ QCPGraph* MainWindow::createNewPlot(DataSource* source, QString title,
             newPlotWnd->setWindowIcon(windowIcon());
             newPlotWnd->show();
 
+            connect(this, &MainWindow::windowExited, newPlotWnd,
+                    &ChartWidget::deleteLater);
+
             popUpPlots.push_back(newPlotWnd);
 
-            std::tie(rPlot, rSeries) = newPlotWnd->addPlot(source->getId());
+            std::tie(rPlot, rSeries) =
+                newPlotWnd->addPlot(source->getId(), pos);
 
             currentSelectedPlot = newPlotWnd;
         } break;
         case InsertAtMainWindow: {
             std::tie(rPlot, rSeries) =
-                ui->mainPlotWidget->addPlot(source->getId());
+                ui->mainPlotWidget->addPlot(source->getId(), pos);
 
             currentSelectedPlot = ui->mainPlotWidget;
         } break;
@@ -140,14 +146,26 @@ QCPGraph* MainWindow::createNewPlot(DataSource* source, QString title,
 }
 
 void MainWindow::bindDataSource(DataSource* source, QCPGraph* series) {
-    connect(source, &DataSource::dataReceived, this,
-            [this, series](const QVector<double> x, const QVector<double> y) {
+    connect(source, &DataSource::dataReceived, series,
+            [series](const QVector<double> x, const QVector<double> y) {
                 series->addData(x, y, true);
 
                 series->rescaleAxes();
 
                 series->parentPlot()->replot();
             });
+    connect(
+        source, &DataSource::controlWordReceived, series,
+        [series](DataSource::DataControlWords controlWord, QByteArray DCWData) {
+            switch (controlWord) {
+                case DataSource::DataControlWords::ClearDatas:
+                    series->setData({}, {});
+                    break;
+
+                default:
+                    break;
+            }
+        });
 }
 
 void MainWindow::createSerialDataSource(SerialSettings settings,
@@ -180,8 +198,12 @@ void MainWindow::createSerialDataSource(SerialSettings settings,
     connect(this, &MainWindow::windowExited, serialWorker,
             &DataSource::requestStopDataSource);
 
+    // TODO Pen color customable
     auto newPlot = createNewPlot(serialWorker, settings.portName,
                                  QPen{QColor{0xfe, 0x5a, 0x5b}}, strategy);
+    auto serialCustomPlot = qobject_cast<CustomPlot*>(newPlot->parentPlot());
+    serialCustomPlot->yAxis->setLabel("Voltage (V)");
+    serialCustomPlot->xAxis->setLabel("Time (us)");
     bindDataSource(serialWorker, newPlot);
 
     auto th = new QThread{this};
@@ -191,50 +213,30 @@ void MainWindow::createSerialDataSource(SerialSettings settings,
     sourceToThreadMap.insert(serialWorker->getId(), {serialWorker, th});
     th->start();
 
-    // connect(fftSource, &DataSource::dataReceived, this,
-    //         [this, newPlot](const QVector<double> x, const QVector<double> y)
-    //         {
-    //             newPlot->setData(x, y, true);
+    // 自动添加FFT图像在其下方
+    auto fftSource = new FFTDataSource{serialWorker};
 
-    //             newPlot->rescaleAxes();
+    connect(this, &MainWindow::windowExited, fftSource,
+            &DataSource::requestStopDataSource);
 
-    //             newPlot->parentPlot()->replot();
-    //         });
+    auto serialWidget =
+        qobject_cast<ChartWidget*>(serialCustomPlot->parentWidget());
+    auto serialWidgetPos = serialWidget->getPlotPos(serialCustomPlot);
+    auto fftPlotPos = QPoint{serialWidgetPos.x(), serialWidgetPos.y() + 1};
 
-    // th->start();
+    auto fftPlot =
+        createNewPlot(fftSource, "FFT with " + settings.portName,
+                      QPen{QColor{0xfe, 0x5a, 0x5b}}, ReusePlot, fftPlotPos);
+    auto fftCustomPlot = qobject_cast<CustomPlot*>(fftPlot->parentPlot());
+    fftCustomPlot->xAxis->setLabel("Frequency (Hz)");
+    fftCustomPlot->yAxis->setLabel("Voltage (V)");
+    bindDataSource(fftSource, fftPlot);
 
-    // // TODO FFT plot
-
-    // NewDataStrategy old = newDataStrategy;
-    // newDataStrategy = NewDataStrategy::PopUpNewWindow;
-    // newPlot = createNewSeries("FFT", {QColor{0xfe, 0x5a, 0x5b}});
-    // auto fftSource = new FFTDataSource{serialWorker};
-    // dataSources.insert(fftSource, newPlot);
-    // connect(fftSource, &DataSource::dataReceived, this,
-    //         [this, newPlot](const QVector<double> x, const QVector<double> y)
-    //         {
-    //             newPlot->setData(x, y, true);
-
-    //             newPlot->rescaleAxes();
-
-    //             newPlot->parentPlot()->replot();
-    //         });
-    // newDataStrategy = old;
-
-    // if (serialThread == nullptr)
-    //     serialThread = new QThread{this};
-
-    // connect(serialThread, &QThread::started, serialWorker, &DataSource::run);
-    // connect(serialThread, &QThread::finished, serialWorker,
-    //         &SerialWorker::deleteLater);
-    // serialWorker->moveToThread(serialThread);
-    // serialThread->start();
-
-    // // TODO FFT plot
-    // auto th = new QThread{this};
-
-    // connect(th, &QThread::started, fftSource, &DataSource::run);
-    // connect(th, &QThread::finished, fftSource, &FFTDataSource ::deleteLater);
-    // fftSource->moveToThread(th);
-    // th->start();
+    auto fftTh = new QThread{this};
+    connect(fftTh, &QThread::started, fftSource, &DataSource::run);
+    connect(fftTh, &QThread::finished, fftSource, &FFTDataSource::deleteLater);
+    connect(th, &QThread::finished, fftTh, &QThread::quit);
+    fftSource->moveToThread(fftTh);
+    sourceToThreadMap.insert(fftSource->getId(), {fftSource, fftTh});
+    fftTh->start();
 }

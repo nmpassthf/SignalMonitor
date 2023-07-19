@@ -21,7 +21,7 @@ QPair<CustomPlot*, QCPGraph*> ChartWidget::addPlot(DataSource::DSID id,
     auto plot = new CustomPlot{this};
     auto series = plot->addDataSource(id);
     subplots.push_back({plot, pos});
-    chartWidgetLayout->addWidget(plot, pos.x(), pos.y());
+    chartWidgetLayout->addWidget(plot, pos.y(), pos.x());
 
     return {plot, series};
 }
@@ -120,6 +120,17 @@ QPoint ChartWidget::getAvailablePos() const {
 
     // 如果所有位置都被占用了，那么添加新的一列
     return {0, col};
+}
+
+QPoint ChartWidget::getPlotPos(CustomPlot* plot) const {
+    auto it = std::ranges::find_if(subplots,
+                                   [plot](auto& p) { return p.first == plot; });
+
+    if (it == subplots.end()) {
+        return {-1, -1};
+    }
+
+    return it->second;
 }
 
 bool ChartWidget::isDataSourceExist(DataSource::DSID id) const {

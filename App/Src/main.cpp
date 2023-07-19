@@ -1,8 +1,11 @@
 ﻿#include <QApplication>
 #include <QWidget>
 
+#include "globalSettings.h"
 #include "mainwindow.h"
 #include "pch.h"
+
+extern bool g_isUsingOpenGL = false;
 
 DESTROYER(EXIT_PRINT) {}
 
