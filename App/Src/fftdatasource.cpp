@@ -21,9 +21,9 @@ FFTDataSource::FFTDataSource(DataSource const* otherRegularSource,
             });
 
     connect(otherRegularSource, &DataSource::controlWordReceived, this,
-            [this](QByteArray ctrl) {
-                if (ctrl.startsWith("%t")) {
-                    this->step = ctrl.mid(2).toDouble();
+            [this](DataSource::DataControlWords c, QByteArray DCWData) {
+                if (c == DataSource::DataControlWords::SetXAxisStep) {
+                    this->step = DCWData.toDouble();
                 }
             });
 }
@@ -70,6 +70,8 @@ void FFTDataSource::run() {
         y[0] /= 2;
 
         appendData(x, y);
+        emit controlWordReceived(DataControlWords::ClearDatas);
+        clearQueuedData();
         QApplication::processEvents();
     }
 

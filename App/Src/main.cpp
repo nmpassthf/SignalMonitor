@@ -4,21 +4,20 @@
 #include "mainwindow.h"
 #include "pch.h"
 
-INITIALIZER(INIT_PRINT) {
-    printCurrentTime() << "Initializing " << PROGRAM_NAME << std::endl;
-    printCurrentTime() << "Starting " << PROGRAM_NAME << std::endl;
-    printCurrentTime() << "Current version: " << VERSION << std::endl;
-}
-
-DESTROYER(EXIT_PRINT) {
-    printCurrentTime() << "Exiting " << PROGRAM_NAME << std::endl;
-}
+DESTROYER(EXIT_PRINT) {}
 
 int main(int argc, char* argv[]) {
     QApplication app{argc, argv};
+
+    printCurrentTime() << "Initializing" << PROGRAM_NAME << "...";
+    printCurrentTime() << "Starting" << PROGRAM_NAME;
+    printCurrentTime() << "Current version: " << VERSION;
+
     MainWindow w{nullptr};
 
     w.show();
+    auto rVal = app.exec();
 
-    return app.exec();
+    printCurrentTime() << "Exiting" << PROGRAM_NAME << "...";
+    return rVal;
 }

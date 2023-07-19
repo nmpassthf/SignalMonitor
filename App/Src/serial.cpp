@@ -39,8 +39,7 @@ SerialSettingsDiag::SerialSettingsDiag(QDialog *parent) : QDialog{parent} {
     setFixedSize(sizeHint());
 }
 SerialSettingsDiag::~SerialSettingsDiag() {
-    printCurrentTime() << "SerialSettingsDiag::~SerialSettingsDiag()"
-                       << std::endl;
+    printCurrentTime() << "SerialSettingsDiag::~SerialSettingsDiag()";
 }
 
 void SerialSettingsDiag::initBtns() {
@@ -74,6 +73,8 @@ void SerialSettingsDiag::initBtns() {
 
         settings.flowControl = static_cast<QSerialPort::FlowControl>(
             cFlowControl->currentData().toInt());
+
+        settings.portName = settings.port.portName();
 
         emit settingsReceived(settings);
         close();
@@ -140,10 +141,10 @@ void SerialSettingsDiag::initComboBox() {
 }
 
 SerialWorker::SerialWorker(QObject *parent) : DataSource{parent} {
-    printCurrentTime() << "SerialWorker::SerialWorker()" << std::endl;
+    printCurrentTime() << "SerialWorker::SerialWorker()";
 }
 SerialWorker::~SerialWorker() {
-    printCurrentTime() << "SerialWorker::~SerialWorker()" << std::endl;
+    printCurrentTime() << "SerialWorker::~SerialWorker()";
 }
 
 void SerialWorker::setSerialSettings(SerialSettings settings) {
@@ -162,8 +163,7 @@ bool SerialWorker::openSerial() {
 }
 
 void SerialWorker::run() {
-    printCurrentTime() << "SerialWorker::run() @" << QThread::currentThreadId()
-                       << std::endl;
+    printCurrentTime() << "SerialWorker::run() @" << QThread::currentThreadId();
 
     bool isStoped = false;
 
@@ -177,7 +177,7 @@ void SerialWorker::run() {
 
         requestStopDataSource();
         emit finished();
-        printCurrentTime() << "SerialWorker::run() end" << std::endl;
+        printCurrentTime() << "SerialWorker::run() end";
     };
 
     connect(serial, &QSerialPort::aboutToClose, this,
@@ -215,7 +215,10 @@ void SerialWorker::run() {
             DataSource::appendData(dataX, dataY);
 
         if (!ctrl.isEmpty())
-            for (auto &singleCtrl : ctrl) emit controlWordReceived(singleCtrl);
+            for (auto &singleCtrl : ctrl) {
+                auto [type, value] = parseControlWord(singleCtrl);
+                emit controlWordReceived(type, value);
+            }
 
         if (!err.isEmpty())
             for (auto &singleErr : err) {
@@ -256,7 +259,7 @@ void SerialWorker::run() {
         // process events
         QCoreApplication::processEvents();
 
-        if(isTerminateSerial)
+        if (isTerminateSerial)
             break;
 
         if (!isStart)

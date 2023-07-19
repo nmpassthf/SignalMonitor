@@ -6,6 +6,7 @@
 #include <QVector>
 #include <QWidget>
 
+#include <pch.h>
 #include "datasource.h"
 #include "mycustomplot.h"
 
@@ -17,11 +18,12 @@ class ChartWidget : public QWidget {
     ~ChartWidget();
 
    public:
-    void addPlot(DataSource* source, QPoint pos = {-1, -1});
-    QCPGraph* insertAtPlot(DataSource* source, QPoint pos);
+    QPair<CustomPlot*, QCPGraph*> addPlot(DataSource::DSID id,
+                                          QPoint pos = {-1, -1});
+    QCPGraph* insertAtPlot(DataSource::DSID id, QPoint pos);
 
     void removePlot(QPoint pos);
-    void removePlot(DataSource* source);
+    void removePlot(DataSource::DSID id);
     void removeAllPlots();
 
     CustomPlot* getPlot(QPoint pos) const;
@@ -29,14 +31,14 @@ class ChartWidget : public QWidget {
 
     /**
      * @brief 返回当前子图的行数和列数
-     * 
-     * @return QPair<int, int> 
+     *
+     * @return QPair<int, int>
      */
     QPair<int, int> getSubplotCount() const;
 
     QPoint getAvailablePos() const;
 
-    bool isDataSourceExist(DataSource* source) const;
+    bool isDataSourceExist(DataSource::DSID id) const;
 
    private:
     QVector<QPair<CustomPlot*, QPoint>> subplots;

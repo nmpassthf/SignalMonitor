@@ -31,6 +31,7 @@ struct SerialSettings {
     QSerialPort::Parity parity;
     QSerialPort::FlowControl flowControl;
     QSerialPortInfo port;
+    QString portName;
 };
 
 class SerialSettingsDiag : public QDialog {

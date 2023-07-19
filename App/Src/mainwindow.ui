@@ -18,7 +18,7 @@
     <widget class="QLabel" name="title">
      <property name="font">
       <font>
-       <pointsize>21</pointsize>
+       <pointsize>14</pointsize>
        <bold>true</bold>
       </font>
      </property>
@@ -31,7 +31,7 @@
     </widget>
    </item>
    <item>
-    <widget class="CustomPlot" name="mainPlotWidget" native="true"/>
+    <widget class="ChartWidget" name="mainPlotWidget" native="true"/>
    </item>
    <item>
     <widget class="QPushButton" name="bSerialSettings">
@@ -69,9 +69,9 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>CustomPlot</class>
+   <class>ChartWidget</class>
    <extends>QWidget</extends>
-   <header location="global">mycustomplot.h</header>
+   <header location="global">chartwidget.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

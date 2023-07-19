@@ -12,25 +12,28 @@ ChartWidget::ChartWidget(QWidget* parent) : QWidget{parent} {
 }
 ChartWidget::~ChartWidget() {}
 
-void ChartWidget::addPlot(DataSource* source, QPoint pos) {
+QPair<CustomPlot*, QCPGraph*> ChartWidget::addPlot(DataSource::DSID id,
+                                                   QPoint pos) {
     if (pos == QPoint{-1, -1}) {
         pos = {0, getSubplotCount().second};
     }
 
     auto plot = new CustomPlot{this};
-    plot->addDataSource(source);
+    auto series = plot->addDataSource(id);
     subplots.push_back({plot, pos});
     chartWidgetLayout->addWidget(plot, pos.x(), pos.y());
+
+    return {plot, series};
 }
 
-QCPGraph* ChartWidget::insertAtPlot(DataSource* source, QPoint pos) {
+QCPGraph* ChartWidget::insertAtPlot(DataSource::DSID id, QPoint pos) {
     auto plot = getPlot(pos);
 
     if (plot == nullptr) {
         return nullptr;
     }
 
-    return plot->addDataSource(source);
+    return plot->addDataSource(id);
 }
 
 void ChartWidget::removePlot(QPoint pos) {
@@ -45,19 +48,19 @@ void ChartWidget::removePlot(QPoint pos) {
         subplots, [plot](auto& p) { return p.first == plot; }));
 }
 
-void ChartWidget::removePlot(DataSource* source) {
-    if (source == nullptr) {
-        qDebug() << "ChartWidget::removePlot: source is nullptr";
+void ChartWidget::removePlot(DataSource::DSID id) {
+    if (id == DataSource::DSID{}) {
+        printCurrentTime() << "ChartWidget::removePlot: id is empty";
         return;
     }
 
-    if (isDataSourceExist(source) == false) {
-        qDebug() << "ChartWidget::removePlot: source is not exist";
+    if (isDataSourceExist(id) == false) {
+        printCurrentTime() << "ChartWidget::removePlot: id is not exist";
         return;
     }
 
     for (const auto& [plot, pos] : subplots) {
-        if (plot->isDataSourceExist(source)) {
+        if (plot->isDataSourceExist(id)) {
             removePlot(pos);
         }
     }
@@ -119,13 +122,13 @@ QPoint ChartWidget::getAvailablePos() const {
     return {0, col};
 }
 
-bool ChartWidget::isDataSourceExist(DataSource* source) const {
-    if (source == nullptr) {
-        qDebug() << "ChartWidget::isDataSourceExist: source is nullptr";
+bool ChartWidget::isDataSourceExist(DataSource::DSID id) const {
+    if (id == DataSource::DSID{}) {
+        printCurrentTime() << "ChartWidget::isDataSourceExist: id is empty";
         return false;
     }
 
-    return std::ranges::find_if(subplots, [source](auto& p) {
-               return p.first->isDataSourceExist(source);
+    return std::ranges::find_if(subplots, [id](auto& p) {
+               return p.first->isDataSourceExist(id);
            }) != subplots.end();
 }

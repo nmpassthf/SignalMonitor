@@ -4,45 +4,73 @@ CustomPlot::CustomPlot(QWidget* parent) : QCustomPlot{parent} {
     initChart();
     initAxis();
     initSeries();
+
+    setOpenGl(true);
 }
 CustomPlot::~CustomPlot() {}
 
-QCPGraph* CustomPlot::addDataSource(DataSource* source) {
+void CustomPlot::connectDataSource(DataSource* source) {
     if (source == nullptr) {
-        qDebug() << "CustomPlot::addDataSource: source is nullptr";
+        printCurrentTime()
+            << "CustomPlot::connectDataSource: source is nullptr";
+        return;
+    }
+
+    if (isDataSourceExist(source->getId()) == false) {
+        printCurrentTime() << "CustomPlot::connectDataSource: id is not added";
+        return;
+    }
+
+    connect(source, &DataSource::dataReceived, this,
+            [this, source](QVector<double> x, QVector<double> y) {
+                auto graph = getGraph(source->getId());
+                if (graph == nullptr) {
+                    printCurrentTime()
+                        << "CustomPlot::connectDataSource: graph is nullptr";
+                    return;
+                }
+
+                graph->addData(x, y);
+                replot();
+            });
+}
+
+QCPGraph* CustomPlot::addDataSource(DataSource::DSID id) {
+    if (id == DataSource::DSID{}) {
+        printCurrentTime() << "CustomPlot::addDataSource: id is empty";
         return nullptr;
     }
 
-    if (isDataSourceExist(source)) {
-        qDebug() << "CustomPlot::addDataSource: source is already exist";
+    if (isDataSourceExist(id)) {
+        printCurrentTime() << "CustomPlot::addDataSource: id is already exist";
         return nullptr;
     }
 
     auto graph = addGraph();
 
-    sourceToGraphMap.insert(source, graph);
+    sourceToGraphMap.insert(id, graph);
 
     return graph;
 }
 
-void CustomPlot::removeDataSource(DataSource* source) {
-    if (source == nullptr) {
-        qDebug() << "CustomPlot::removeDataSource: source is nullptr";
+void CustomPlot::removeDataSource(DataSource::DSID id) {
+    if (id == DataSource::DSID{}) {
+        printCurrentTime() << "CustomPlot::removeDataSource: id is empty";
         return;
     }
 
-    if (isDataSourceExist(source) == false) {
-        qDebug() << "CustomPlot::removeDataSource: source is not exist";
+    if (isDataSourceExist(id) == false) {
+        printCurrentTime() << "CustomPlot::removeDataSource: id is not exist";
         return;
     }
 
-    auto graph = getGraph(source);
+    auto graph = getGraph(id);
     removeGraph(graph);
-    sourceToGraphMap.remove(source);
+    sourceToGraphMap.remove(id);
 }
 
-QCPGraph* CustomPlot::getGraph(DataSource* source) {
-    auto it = sourceToGraphMap.find(source);
+QCPGraph* CustomPlot::getGraph(DataSource::DSID id) {
+    auto it = sourceToGraphMap.find(id);
 
     if (it == sourceToGraphMap.end()) {
         return nullptr;
@@ -51,8 +79,8 @@ QCPGraph* CustomPlot::getGraph(DataSource* source) {
     return it.value();
 }
 
-bool CustomPlot::isDataSourceExist(DataSource* source) const {
-    return sourceToGraphMap.contains(source);
+bool CustomPlot::isDataSourceExist(DataSource::DSID id) const {
+    return sourceToGraphMap.contains(id);
 }
 
 void CustomPlot::initChart() {

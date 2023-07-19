@@ -18,10 +18,6 @@
 constexpr auto PROGRAM_NAME = "Signal Monitor";
 constexpr auto VERSION = signalmonitor_VERSION;
 
-inline auto& printCurrentTime() {
-    return std::cout << "[" << std::chrono::system_clock::now() << "] ";
-}
-
 /**
  * @brief macros
  *
@@ -47,5 +43,12 @@ inline auto& printCurrentTime() {
 
 #define INITIALIZER(FUNC_NAME) _INITIALIZER(FUNC_NAME)
 #define DESTROYER(FUNC_NAME) _DESTROYER(FUNC_NAME)
+
+#include <QDebug>
+inline auto printCurrentTime() {
+    std::stringstream ss;
+    ss << "[" << std::chrono::system_clock::now() << "]";
+    return qDebug() << ss.str().c_str();
+}
 
 #endif /* __M_PCH_H__ */

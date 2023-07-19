@@ -12,7 +12,7 @@
 
 #include "pch.h"
 
-// 
+//
 
 #include <QCloseEvent>
 #include <QMap>
@@ -20,8 +20,9 @@
 #include <QWidget>
 #include <memory>
 
+#include "chartwidget.h"
 #include "datasource.h"
-#include "mycustomplot.h"
+#include "serial.h"
 
 namespace Ui {
 class MainWindow;
@@ -35,39 +36,49 @@ class MainWindow : public QWidget {
     }
 
    public:
+    using NewDataStrategy = enum {
+        ReusePlot,
+        InsertAtMainWindow,
+        PopUpNewWindow,
+    };
+
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+
+   signals:
+    void windowExited();
+
+   public slots:
+    void onSourceError(QString);
+    void onSourceControlWordReceived(DataSource::DataControlWords controlWord,
+                                     QByteArray DCWData);
 
    protected:
     virtual void closeEvent(QCloseEvent *event) override;
 
    private:
-    Ui::MainWindow *ui;
-    QThread *serialThread = nullptr;
-
-    enum class NewDataStrategy {
-        ReusePlot,
-        InsertAtMainWindow,
-        PopUpNewWindow,
-    } newDataStrategy = NewDataStrategy::InsertAtMainWindow;
-
-    QVector<QCustomPlot *> popUpPlots;
-    QCustomPlot *currentSelectedPlot = nullptr;
-    QMap<DataSource*, QCPGraph *> dataSources;
-    QMap<DataSource*, bool> isDataSourceRunning;
-
-   signals:
-    void serialCloseRequest();
-
-   public slots:
-    void onSourceError(QString);
-    void onSourceControlWordReceived(QByteArray);
-
-   private:
     void bindPushButtons();
 
-    QCPGraph *createNewSeries(QString title,QPen color);
-    void bindDataSource(DataSource* source, QCPGraph *plot);
+    /**
+     * @brief Create a New Plot object
+     *
+     * @param source
+     * @return QCPGraph* Series Object
+     */
+    QCPGraph *createNewPlot(DataSource *source, QString title, QPen color,
+                            NewDataStrategy strategy);
+    void bindDataSource(DataSource *source, QCPGraph *series);
+
+    void createSerialDataSource(SerialSettings settings,
+                                NewDataStrategy strategy);
+
+   private:
+    Ui::MainWindow *ui;
+
+    ChartWidget *currentSelectedPlot = nullptr;
+
+    QMap<DataSource::DSID, QPair<DataSource *, QThread *>> sourceToThreadMap;
+    QVector<ChartWidget *> popUpPlots;
 };
 
 #endif /* __M_MAINWINDOW_H__ */

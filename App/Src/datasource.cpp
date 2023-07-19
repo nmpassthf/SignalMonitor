@@ -1,12 +1,38 @@
 #include "datasource.h"
 
-DataSource::DataSource(QObject* parent) : QObject{parent} {
+DataSource::DataSource(QObject* parent)
+    : uuid(QUuid::createUuid()), QObject{parent} {
     updateTimer = new QTimer{this};
     updateTimer->setInterval(dataUpdateInterval);
     connect(updateTimer, &QTimer::timeout, this, &DataSource::updateData);
     updateTimer->start();
 }
 DataSource::~DataSource() {}
+
+void DataSource::appendData(QVector<double> x, QVector<double> y) {
+    dataX.append(x);
+    dataY.append(y);
+}
+
+void DataSource::clearQueuedData() {
+    dataX.clear();
+    dataY.clear();
+}
+
+QPair<DataSource::DataControlWords, QByteArray> DataSource::parseControlWord(
+    QByteArray data) const {
+    if (data.startsWith("%START")) {
+        return {DataControlWords::DataStreamStart, {}};
+    } else if (data.startsWith("%STOP")) {
+        return {DataControlWords::DataStreamStop, {}};
+    } else if (data.startsWith("%CLEAR")) {
+        return {DataControlWords::ClearDatas, {}};
+    } else if (data.startsWith("%t")) {
+        return {DataControlWords::SetXAxisStep, data.mid(2)};
+    } else [[unlikely]] {
+        return {DataControlWords::UserDefined, data};
+    }
+}
 
 void DataSource::updateData() {
     if (dataX.isEmpty())
@@ -16,9 +42,4 @@ void DataSource::updateData() {
 
     dataX.clear();
     dataY.clear();
-}
-
-void DataSource::appendData(QVector<double> x, QVector<double> y) {
-    dataX.append(x);
-    dataY.append(y);
 }

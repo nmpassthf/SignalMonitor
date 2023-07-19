@@ -3,8 +3,9 @@
 
 #include <QMap>
 
-#include "qcustomplot.h"
 #include "datasource.h"
+#include "pch.h"
+#include "qcustomplot.h"
 
 class CustomPlot : public QCustomPlot {
     Q_OBJECT;
@@ -14,11 +15,18 @@ class CustomPlot : public QCustomPlot {
     ~CustomPlot();
 
    public:
-    QCPGraph* addDataSource(DataSource* source);
-    void removeDataSource(DataSource* source);
-    QCPGraph* getGraph(DataSource* source);
+    /**
+     * @brief call after addDataSource
+     *
+     * @param source
+     */
+    void connectDataSource(DataSource* source);
 
-    bool isDataSourceExist(DataSource* source) const;
+    QCPGraph* addDataSource(DataSource::DSID source);
+    void removeDataSource(DataSource::DSID source);
+    QCPGraph* getGraph(DataSource::DSID source);
+
+    bool isDataSourceExist(DataSource::DSID source) const;
 
    private:
     void initChart();
@@ -26,8 +34,7 @@ class CustomPlot : public QCustomPlot {
     void initSeries();
 
    private:
-    QMap<DataSource*, QCPGraph*> sourceToGraphMap;
+    QMap<DataSource::DSID, QCPGraph*> sourceToGraphMap;
 };
-
 
 #endif /* __M_MYCUSTOMPLOT_H__ */
