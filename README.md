@@ -4,7 +4,7 @@
 
 支持FFT以分析频域信号。
 
-
+![Image text](https://raw.githubusercontent.com/nmpassthf/SignalMonitor/master/Documents/Assets/porgram_img.png)
 
 ## 使用说明
 
