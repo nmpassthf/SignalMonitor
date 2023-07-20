@@ -100,13 +100,15 @@ QPair<int, int> ChartWidget::getSubplotCount() const {
     int maxCol = 0;
 
     for (const auto& pos : subplots | std::views::values) {
-        maxRow = std::max(maxRow, pos.x());
-        maxCol = std::max(maxCol, pos.y());
+        // 最大行数为最大y坐标+1
+        maxRow = std::max(maxRow, pos.y());
+        // 最大列数为最大x坐标+1
+        maxCol = std::max(maxCol, pos.x());
     }
 
     return {maxRow + 1, maxCol + 1};
 }
-
+// TODO 避免行列和xy混用
 QPoint ChartWidget::getAvailablePos() const {
     auto [row, col] = getSubplotCount();
 

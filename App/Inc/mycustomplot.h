@@ -16,7 +16,7 @@ class DataLabel : public QLabel {
     DataLabel(QWidget* parent = nullptr);
     ~DataLabel();
 
-    void setData(double data);
+    void setData(QPair <double,double> data);
 };
 
 class CustomPlot : public QCustomPlot {

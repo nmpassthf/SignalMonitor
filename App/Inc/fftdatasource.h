@@ -10,7 +10,12 @@ class FFTDataSource : public DataSource {
     constexpr static auto defalultFFTSize = 1024;
 
    public:
-    explicit FFTDataSource(DataSource const* otherRegularSource,
+    using FFTWorkMode = enum {
+        Amplitude,
+        Phase,
+    };
+
+    explicit FFTDataSource(FFTWorkMode,DataSource const* otherRegularSource,
                            QObject* parent = nullptr);
     virtual ~FFTDataSource();
 
@@ -23,6 +28,7 @@ class FFTDataSource : public DataSource {
     uint32_t fftSize = defalultFFTSize;
     ComplexArray dataset;
     bool isDataUpdated = false;
+    FFTWorkMode workMode;
 };
 
 #endif /* __M_FFTDATASOURCE_H__ */

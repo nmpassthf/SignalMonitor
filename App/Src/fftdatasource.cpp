@@ -4,9 +4,12 @@
 #include <QThread>
 #include <ranges>
 
-FFTDataSource::FFTDataSource(DataSource const* otherRegularSource,
+FFTDataSource::FFTDataSource(FFTWorkMode mode,
+                             DataSource const* otherRegularSource,
                              QObject* parent)
-    : DataSource{parent} {
+    : workMode{mode}, DataSource{parent} {
+    dataset.reserve(fftSize);
+
     connect(otherRegularSource, &DataSource::dataReceived, this,
             [this](QVector<double> xs, QVector<double> ys) {
                 for (auto& y : ys) {
@@ -38,8 +41,11 @@ void FFTDataSource::run() {
             continue;
         }
 
-        if (dataset.size() < fftSize) {
-            continue;
+        // copy a new dataset to use zero padding
+        ComplexArray dataset = this->dataset;
+        dataset.reserve(fftSize);
+        for (auto i = dataset.size(); i < fftSize; ++i) {
+            dataset.push_back({0, 0});
         }
 
         isDataUpdated = false;
@@ -51,14 +57,23 @@ void FFTDataSource::run() {
 
         uint64_t i;
 
-        auto xVal = [&i, this](auto it) {
-            return 1e6 * (i++) / step / fftSize;
-        };
-        auto yVal = [this](auto it) {
-            return std::pow(std::pow(it->real(), 2) + std::pow(it->imag(), 2),
-                            0.5) /
-                   (fftSize / 2);
-        };
+        auto xVal = std::function<double(ComplexArray::const_iterator)>();
+        auto yVal = std::function<double(ComplexArray::const_iterator)>();
+
+        if (workMode == Amplitude) {
+            xVal = [&i, this](auto it) { return 1e6 * (i++) / step / fftSize; };
+            yVal = [this](auto it) {
+                return std::pow(
+                           std::pow(it->real(), 2) + std::pow(it->imag(), 2),
+                           0.5) /
+                       (fftSize / 2);
+            };
+        }else {
+            xVal = [&i, this](auto it) { return 1e6 * (i++) / step / fftSize; };
+            yVal = [this](auto it) {
+                return std::atan2(it->imag(), it->real()) * 180 / M_PI;
+            };
+        }
 
         i = 0;
         for (auto pIt = fftResult.cbegin();

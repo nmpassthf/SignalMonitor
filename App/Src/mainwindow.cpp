@@ -200,7 +200,7 @@ void MainWindow::createSerialDataSource(SerialSettings settings,
 
     // TODO Pen color customable
     auto newPlot = createNewPlot(serialWorker, settings.portName,
-                                 QPen{QColor{0xfe, 0x5a, 0x5b}}, strategy);
+                                 QPen{QColor{0x57, 0xbe, 0x8a}}, strategy);
     auto serialCustomPlot = qobject_cast<CustomPlot*>(newPlot->parentPlot());
     serialCustomPlot->yAxis->setLabel("Voltage (V)");
     serialCustomPlot->xAxis->setLabel("Time (us)");
@@ -214,29 +214,57 @@ void MainWindow::createSerialDataSource(SerialSettings settings,
     th->start();
 
     // 自动添加FFT图像在其下方
-    auto fftSource = new FFTDataSource{serialWorker};
-
-    connect(this, &MainWindow::windowExited, fftSource,
-            &DataSource::requestStopDataSource);
-
     auto serialWidget =
         qobject_cast<ChartWidget*>(serialCustomPlot->parentWidget());
     auto serialWidgetPos = serialWidget->getPlotPos(serialCustomPlot);
-    auto fftPlotPos = QPoint{serialWidgetPos.x(), serialWidgetPos.y() + 1};
 
-    auto fftPlot =
-        createNewPlot(fftSource, "FFT with " + settings.portName,
-                      QPen{QColor{0xfe, 0x5a, 0x5b}}, ReusePlot, fftPlotPos);
-    auto fftCustomPlot = qobject_cast<CustomPlot*>(fftPlot->parentPlot());
-    fftCustomPlot->xAxis->setLabel("Frequency (Hz)");
-    fftCustomPlot->yAxis->setLabel("Voltage (V)");
-    bindDataSource(fftSource, fftPlot);
+    // 幅度谱
+    auto fftAmpSource =
+        new FFTDataSource{FFTDataSource::Amplitude, serialWorker};
 
-    auto fftTh = new QThread{this};
-    connect(fftTh, &QThread::started, fftSource, &DataSource::run);
-    connect(fftTh, &QThread::finished, fftSource, &FFTDataSource::deleteLater);
-    connect(th, &QThread::finished, fftTh, &QThread::quit);
-    fftSource->moveToThread(fftTh);
-    sourceToThreadMap.insert(fftSource->getId(), {fftSource, fftTh});
-    fftTh->start();
+    connect(this, &MainWindow::windowExited, fftAmpSource,
+            &DataSource::requestStopDataSource);
+
+    auto fftAmpPlot =
+        createNewPlot(fftAmpSource, "FFT with " + settings.portName,
+                      QPen{QColor{0xfe, 0x5a, 0x5b}}, ReusePlot,
+                      {serialWidgetPos.x(), serialWidgetPos.y() + 1});
+    auto fftAmpCustomPlot = qobject_cast<CustomPlot*>(fftAmpPlot->parentPlot());
+    fftAmpCustomPlot->xAxis->setLabel("Frequency (Hz)");
+    fftAmpCustomPlot->yAxis->setLabel("Amptitute (V)");
+    bindDataSource(fftAmpSource, fftAmpPlot);
+
+    auto fftAmpThread = new QThread{this};
+    connect(fftAmpThread, &QThread::started, fftAmpSource, &DataSource::run);
+    connect(fftAmpThread, &QThread::finished, fftAmpSource,
+            &FFTDataSource::deleteLater);
+    connect(th, &QThread::finished, fftAmpThread, &QThread::quit);
+    fftAmpSource->moveToThread(fftAmpThread);
+    sourceToThreadMap.insert(fftAmpSource->getId(), {fftAmpSource, fftAmpThread});
+    fftAmpThread->start();
+
+    // 相位谱
+    auto fftPhaseSource =
+        new FFTDataSource{FFTDataSource::Phase, serialWorker};
+
+    connect(this, &MainWindow::windowExited, fftPhaseSource,
+            &DataSource::requestStopDataSource);
+
+    auto fftPhasePlot =
+        createNewPlot(fftPhaseSource, "FFT with " + settings.portName,
+                      QPen{QColor{0x66, 0xcc, 0xff}}, ReusePlot,
+                      {serialWidgetPos.x(), serialWidgetPos.y() + 2});
+    auto fftPhaseCustomPlot = qobject_cast<CustomPlot*>(fftPhasePlot->parentPlot());
+    fftPhaseCustomPlot->xAxis->setLabel("Frequency (Hz)");
+    fftPhaseCustomPlot->yAxis->setLabel("Phase (Angle)");
+    bindDataSource(fftPhaseSource, fftPhasePlot);
+
+    auto fftPhaseThread = new QThread{this};
+    connect(fftPhaseThread, &QThread::started, fftPhaseSource, &DataSource::run);
+    connect(fftPhaseThread, &QThread::finished, fftPhaseSource,
+            &FFTDataSource::deleteLater);
+    connect(th, &QThread::finished, fftPhaseThread, &QThread::quit);
+    fftPhaseSource->moveToThread(fftPhaseThread);
+    sourceToThreadMap.insert(fftPhaseSource->getId(), {fftPhaseSource, fftPhaseThread});
+    fftPhaseThread->start();
 }

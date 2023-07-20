@@ -15,8 +15,10 @@ DataLabel::DataLabel(QWidget* parent) : QLabel{parent} {
     setAttribute(Qt::WA_TransparentForMouseEvents);
 }
 DataLabel::~DataLabel() {}
-void DataLabel::setData(double data) {
-    setText(QString::number(data));
+
+void DataLabel::setData(QPair<double, double> data) {
+    setText(QString::number(data.first) + "," + QString::number(data.second));
+
     // 设置宽度足够显示
     adjustSize();
 }
@@ -138,10 +140,10 @@ void CustomPlot::initChart() {
         // show data label move with mouse
         if (res != nullptr && res->dataPointCount() > 0) {
             auto dataIndex = res->dataRange().begin();
-            auto dataValue = graph()->data()->at(dataIndex)->value;
+            auto dataValue = *graph()->data()->at(dataIndex);
             auto dataPos = graph()->dataPixelPosition(dataIndex);
 
-            dataLabel->setData(dataValue);
+            dataLabel->setData({dataValue.key, dataValue.value});
 
             auto xAxisRect = plotLayout()->elements(false).first()->rect();
             auto currentY = dataPos.y();
