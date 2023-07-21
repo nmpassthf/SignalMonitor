@@ -1,4 +1,12 @@
-
+/**
+ * @file mycustomplot.cpp
+ * @author nmpassthf (nmpassthf@gmail.com)
+ * @brief
+ * @date 2023-07-21
+ *
+ * @copyright Copyright (c) nmpassthf 2023
+ *
+ */
 #include "mycustomplot.h"
 
 #include <qlabel.h>
@@ -30,11 +38,6 @@ CustomPlot::CustomPlot(QWidget* parent) : QCustomPlot{parent} {
 
     if (g_isUsingOpenGL) {
         setOpenGl(true);
-
-        // 定期replot避免OpenGl导致显示错误
-        QTimer* timer = new QTimer(this);
-        connect(timer, &QTimer::timeout, this, [this]() { replot(); });
-        timer->start(1000 / 60);
     }
 
     dataLabel = new DataLabel{this};

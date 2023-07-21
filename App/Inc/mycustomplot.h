@@ -1,3 +1,12 @@
+/**
+ * @file mycustomPlot.h
+ * @author nmpassthf (nmpassthf@gmail.com)
+ * @brief
+ * @date 2023-07-21
+ *
+ * @copyright Copyright (c) nmpassthf 2023
+ *
+ */
 #ifndef __M_MYCUSTOMPLOT_H__
 #define __M_MYCUSTOMPLOT_H__
 
@@ -16,7 +25,7 @@ class DataLabel : public QLabel {
     DataLabel(QWidget* parent = nullptr);
     ~DataLabel();
 
-    void setData(QPair <double,double> data);
+    void setData(QPair<double, double> data);
 };
 
 class CustomPlot : public QCustomPlot {
@@ -40,7 +49,6 @@ class CustomPlot : public QCustomPlot {
 
     bool isDataSourceExist(DataSource::DSID source) const;
 
-   protected:
    private:
     void initChart();
     void initAxis(QStringList axesLabel);

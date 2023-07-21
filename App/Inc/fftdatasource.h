@@ -1,3 +1,12 @@
+/**
+ * @file fftdatasource.h
+ * @author nmpassthf (nmpassthf@gmail.com)
+ * @brief
+ * @date 2023-07-22
+ *
+ * @copyright Copyright (c) nmpassthf 2023
+ *
+ */
 #ifndef __M_FFTDATASOURCE_H__
 #define __M_FFTDATASOURCE_H__
 
@@ -15,7 +24,7 @@ class FFTDataSource : public DataSource {
         Phase,
     };
 
-    explicit FFTDataSource(FFTWorkMode,DataSource const* otherRegularSource,
+    explicit FFTDataSource(FFTWorkMode, DataSource const* otherRegularSource,
                            QObject* parent = nullptr);
     virtual ~FFTDataSource();
 

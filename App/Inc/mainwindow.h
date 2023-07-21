@@ -1,5 +1,3 @@
-#ifndef __M_MAINWINDOW_H__
-#define __M_MAINWINDOW_H__
 /**
  * @file mainwindow.h
  * @author nmpassthf (nmpassthf@gmail.com)
@@ -9,10 +7,8 @@
  * @copyright Copyright (c) nmpassthf 2023
  *
  */
-
-#include "pch.h"
-
-//
+#ifndef __M_MAINWINDOW_H__
+#define __M_MAINWINDOW_H__
 
 #include <QCloseEvent>
 #include <QMap>
@@ -22,6 +18,7 @@
 
 #include "chartwidget.h"
 #include "datasource.h"
+#include "pch.h"
 #include "serial.h"
 
 namespace Ui {

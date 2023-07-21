@@ -1,5 +1,3 @@
-#ifndef __M_PCH_H__
-#define __M_PCH_H__
 /**
  * @file pch.h
  * @author nmpassthf (nmpassthf@gmail.com)
@@ -9,6 +7,8 @@
  * @copyright Copyright (c) nmpassthf 2023
  *
  */
+#ifndef __M_PCH_H__
+#define __M_PCH_H__
 
 #include <chrono>
 #include <iostream>

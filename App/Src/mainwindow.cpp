@@ -1,3 +1,12 @@
+/**
+ * @file mainwindow.cpp
+ * @author nmpassthf (nmpassthf@gmail.com)
+ * @brief
+ * @date 2023-07-15
+ *
+ * @copyright Copyright (c) nmpassthf 2023
+ *
+ */
 #include "mainwindow.h"
 
 #include <QFontDatabase>
@@ -37,15 +46,14 @@ MainWindow::~MainWindow() {
             continue;
         }
 
-        printCurrentTime() << "Thread" << thread->currentThreadId()
+        printCurrentTime() << "Thread" << thread
                            << "is running:" << thread->isRunning();
 
         if (thread->isRunning()) {
             thread->exit();
             thread->wait();
 
-            printCurrentTime()
-                << "Thread" << thread->currentThreadId() << "is exited.";
+            printCurrentTime() << "Thread" << thread << "is exited.";
         }
     }
 }
@@ -240,12 +248,12 @@ void MainWindow::createSerialDataSource(SerialSettings settings,
             &FFTDataSource::deleteLater);
     connect(th, &QThread::finished, fftAmpThread, &QThread::quit);
     fftAmpSource->moveToThread(fftAmpThread);
-    sourceToThreadMap.insert(fftAmpSource->getId(), {fftAmpSource, fftAmpThread});
+    sourceToThreadMap.insert(fftAmpSource->getId(),
+                             {fftAmpSource, fftAmpThread});
     fftAmpThread->start();
 
     // 相位谱
-    auto fftPhaseSource =
-        new FFTDataSource{FFTDataSource::Phase, serialWorker};
+    auto fftPhaseSource = new FFTDataSource{FFTDataSource::Phase, serialWorker};
 
     connect(this, &MainWindow::windowExited, fftPhaseSource,
             &DataSource::requestStopDataSource);
@@ -254,17 +262,20 @@ void MainWindow::createSerialDataSource(SerialSettings settings,
         createNewPlot(fftPhaseSource, "FFT with " + settings.portName,
                       QPen{QColor{0x66, 0xcc, 0xff}}, ReusePlot,
                       {serialWidgetPos.x(), serialWidgetPos.y() + 2});
-    auto fftPhaseCustomPlot = qobject_cast<CustomPlot*>(fftPhasePlot->parentPlot());
+    auto fftPhaseCustomPlot =
+        qobject_cast<CustomPlot*>(fftPhasePlot->parentPlot());
     fftPhaseCustomPlot->xAxis->setLabel("Frequency (Hz)");
     fftPhaseCustomPlot->yAxis->setLabel("Phase (Angle)");
     bindDataSource(fftPhaseSource, fftPhasePlot);
 
     auto fftPhaseThread = new QThread{this};
-    connect(fftPhaseThread, &QThread::started, fftPhaseSource, &DataSource::run);
+    connect(fftPhaseThread, &QThread::started, fftPhaseSource,
+            &DataSource::run);
     connect(fftPhaseThread, &QThread::finished, fftPhaseSource,
             &FFTDataSource::deleteLater);
     connect(th, &QThread::finished, fftPhaseThread, &QThread::quit);
     fftPhaseSource->moveToThread(fftPhaseThread);
-    sourceToThreadMap.insert(fftPhaseSource->getId(), {fftPhaseSource, fftPhaseThread});
+    sourceToThreadMap.insert(fftPhaseSource->getId(),
+                             {fftPhaseSource, fftPhaseThread});
     fftPhaseThread->start();
 }

@@ -1,3 +1,12 @@
+/**
+ * @file fftdatasource.cpp
+ * @author nmpassthf (nmpassthf@gmail.com)
+ * @brief
+ * @date 2023-07-22
+ *
+ * @copyright Copyright (c) nmpassthf 2023
+ *
+ */
 #include "fftdatasource.h"
 
 #include <QApplication>
@@ -68,7 +77,7 @@ void FFTDataSource::run() {
                            0.5) /
                        (fftSize / 2);
             };
-        }else {
+        } else {
             xVal = [&i, this](auto it) { return 1e6 * (i++) / step / fftSize; };
             yVal = [this](auto it) {
                 return std::atan2(it->imag(), it->real()) * 180 / M_PI;

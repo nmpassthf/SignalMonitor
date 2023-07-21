@@ -1,3 +1,12 @@
+/**
+ * @file datasource.cpp
+ * @author nmpassthf (nmpassthf@gmail.com)
+ * @brief
+ * @date 2023-07-20
+ *
+ * @copyright Copyright (c) nmpassthf 2023
+ *
+ */
 #include "datasource.h"
 
 DataSource::DataSource(QObject* parent)

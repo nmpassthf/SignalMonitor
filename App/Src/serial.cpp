@@ -1,3 +1,12 @@
+/**
+ * @file serial.cpp
+ * @author nmpassthf (nmpassthf@gmail.com)
+ * @brief
+ * @date 2023-07-15
+ *
+ * @copyright Copyright (c) nmpassthf 2023
+ *
+ */
 #include "serial.h"
 
 #include <QCoreApplication>

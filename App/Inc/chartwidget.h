@@ -1,3 +1,12 @@
+/**
+ * @file chartwidget.h
+ * @author nmpassthf (nmpassthf@gmail.com)
+ * @brief
+ * @date 2023-07-20
+ *
+ * @copyright Copyright (c) nmpassthf 2023
+ *
+ */
 #ifndef __M_CHARTWIDGET_H__
 #define __M_CHARTWIDGET_H__
 

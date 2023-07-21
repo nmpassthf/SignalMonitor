@@ -1,5 +1,3 @@
-#ifndef __M_SERIAL_H__
-#define __M_SERIAL_H__
 /**
  * @file serialsettingsdiag.h
  * @author nmpassthf (nmpassthf@gmail.com)
@@ -9,6 +7,8 @@
  * @copyright Copyright (c) nmpassthf 2023
  *
  */
+#ifndef __M_SERIAL_H__
+#define __M_SERIAL_H__
 
 #include <QByteArray>
 #include <QComboBox>
@@ -16,7 +16,6 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include <QPushButton>
-#include <QRunnable>
 #include <QSerialPort>
 #include <QSerialPortInfo>
 #include <optional>

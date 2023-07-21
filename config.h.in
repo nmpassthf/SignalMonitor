@@ -1,2 +1,16 @@
-﻿#pragma once
+﻿/**
+ * @file config.h.in
+ * @author nmpassthf (nmpassthf@gmail.com)
+ * @brief
+ * @date 2023-07-15
+ *
+ * @copyright Copyright (c) nmpassthf 2023
+ *
+ */
+
+#ifndef __M_CONFIG_H_IN__
+#define __M_CONFIG_H_IN__
 #define signalmonitor_VERSION "@signalmonitor_VERSION@"
+
+
+#endif /* __M_CONFIG_H_IN__ */
