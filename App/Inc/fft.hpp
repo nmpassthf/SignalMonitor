@@ -10,9 +10,6 @@
 #ifndef __M_FFT_HPP__
 #define __M_FFT_HPP__
 
-#ifndef __BBR_FFT_H__
-#define __BBR_FFT_H__
-
 #include <complex>
 #include <string>
 #include <vector>
@@ -39,7 +36,5 @@ class Fourier {
         return f <= DBL_EPSILON && f >= -DBL_EPSILON;
     }
 };
-
-#endif  // !__BBR_FFT_H__
 
 #endif /* __M_FFT_HPP__ */
