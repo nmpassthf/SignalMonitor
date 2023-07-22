@@ -7,7 +7,7 @@
  * @copyright Copyright (c) nmpassthf 2022
  *
  */
-
+#include <pch.h>
 #include "fft.hpp"
 
 constexpr double __BBR_FFT_PI = 3.14159265358979323846;

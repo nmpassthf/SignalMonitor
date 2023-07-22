@@ -87,6 +87,16 @@ void MainWindow::bindPushButtons() {
 
         serialSettingsDiag->exec();
     });
+
+    // bClearPlots btn
+    connect(ui->bClearPlots, &QPushButton::clicked, this, [this]() {
+        printCurrentTime() << "Clear plots button clicked";
+
+        ui->mainPlotWidget->clearPlots();
+        for (auto plot : popUpPlots) {
+            plot->clearPlots();
+        }
+    });
 }
 
 void MainWindow::onSourceError(QString errorMsg) {

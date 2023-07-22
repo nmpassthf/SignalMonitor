@@ -28,13 +28,6 @@ class Fourier {
 
     static std::string pretty(const ComplexArray &);
     static std::string prettyComplexDouble(const ComplexDouble &);
-
-    constexpr inline static bool floatIsZero(const float &f) {
-        return f <= FLT_EPSILON && f >= -FLT_EPSILON;
-    }
-    constexpr inline static bool floatIsZero(const double &f) {
-        return f <= DBL_EPSILON && f >= -DBL_EPSILON;
-    }
 };
 
 #endif /* __M_FFT_HPP__ */

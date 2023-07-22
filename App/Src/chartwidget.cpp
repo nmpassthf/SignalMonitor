@@ -93,6 +93,38 @@ CustomPlot* ChartWidget::getPlot(QPoint pos) const {
     return it->first;
 }
 
+void ChartWidget::clearPlot(QPoint pos) {
+    auto plot = getPlot(pos);
+
+    if (plot == nullptr) {
+        return;
+    }
+
+    plot->graph()->data()->clear();
+}
+void ChartWidget::clearPlot(DataSource::DSID id) {
+    if (id == DataSource::DSID{}) {
+        printCurrentTime() << "ChartWidget::clearPlot: id is empty";
+        return;
+    }
+
+    if (isDataSourceExist(id) == false) {
+        printCurrentTime() << "ChartWidget::clearPlot: id is not exist";
+        return;
+    }
+
+    for (const auto& [plot, pos] : subplots) {
+        if (plot->isDataSourceExist(id)) {
+            clearPlot(pos);
+        }
+    }
+}
+void ChartWidget::clearPlots() {
+    for (const auto& plotPos : subplots | std::views::values) {
+        clearPlot(plotPos);
+    }
+}
+
 QVector<CustomPlot*> ChartWidget::getPlots() {
     QVector<CustomPlot*> plots;
     plots.reserve(subplots.size());

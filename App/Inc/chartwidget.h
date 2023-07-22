@@ -38,6 +38,7 @@ class ChartWidget : public QWidget {
 
     CustomPlot* getPlot(QPoint pos) const;
     QVector<CustomPlot*> getPlots();
+    void clearPlot(QPoint pos);
 
     /**
      * @brief 返回当前子图的行数和列数
@@ -50,6 +51,10 @@ class ChartWidget : public QWidget {
     QPoint getPlotPos(CustomPlot* plot) const;
 
     bool isDataSourceExist(DataSource::DSID id) const;
+
+   public slots:
+    void clearPlot(DataSource::DSID id);
+    void clearPlots();
 
    private:
     QVector<QPair<CustomPlot*, QPoint>> subplots;
