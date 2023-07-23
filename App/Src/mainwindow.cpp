@@ -100,8 +100,7 @@ void MainWindow::bindPushButtons() {
 }
 
 void MainWindow::onSourceError(QString errorMsg) {
-    printCurrentTime() << "Serial error:"
-                       << errorMsg.toLocal8Bit().toStdString();
+    printCurrentTime() << "Serial error:" << errorMsg;
     // TODO
 }
 
@@ -113,7 +112,7 @@ void MainWindow::onSourceControlWordReceived(
 
 QCPGraph* MainWindow::createNewPlot(DataSource* source, QString title,
                                     QPen color, NewDataStrategy strategy,
-                                    QPoint pos) {
+                                    ChartWidget::PlotPos_t pos) {
     CustomPlot* rPlot = nullptr;
     QCPGraph* rSeries = nullptr;
 
@@ -246,7 +245,7 @@ void MainWindow::createSerialDataSource(SerialSettings settings,
     auto fftAmpPlot =
         createNewPlot(fftAmpSource, "FFT with " + settings.portName,
                       QPen{QColor{0xfe, 0x5a, 0x5b}}, ReusePlot,
-                      {serialWidgetPos.x(), serialWidgetPos.y() + 1});
+                      {serialWidgetPos.first + 1, serialWidgetPos.second});
     auto fftAmpCustomPlot = qobject_cast<CustomPlot*>(fftAmpPlot->parentPlot());
     fftAmpCustomPlot->xAxis->setLabel("Frequency (Hz)");
     fftAmpCustomPlot->yAxis->setLabel("Amptitute (V)");
@@ -271,7 +270,7 @@ void MainWindow::createSerialDataSource(SerialSettings settings,
     auto fftPhasePlot =
         createNewPlot(fftPhaseSource, "FFT with " + settings.portName,
                       QPen{QColor{0x66, 0xcc, 0xff}}, ReusePlot,
-                      {serialWidgetPos.x(), serialWidgetPos.y() + 2});
+                      {serialWidgetPos.first+2, serialWidgetPos.second});
     auto fftPhaseCustomPlot =
         qobject_cast<CustomPlot*>(fftPhasePlot->parentPlot());
     fftPhaseCustomPlot->xAxis->setLabel("Frequency (Hz)");

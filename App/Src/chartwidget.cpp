@@ -22,20 +22,25 @@ ChartWidget::ChartWidget(QWidget* parent) : QWidget{parent} {
 ChartWidget::~ChartWidget() {}
 
 QPair<CustomPlot*, QCPGraph*> ChartWidget::addPlot(DataSource::DSID id,
-                                                   QPoint pos) {
-    if (pos == QPoint{-1, -1}) {
-        pos = {0, getSubplotCount().second};
+                                                   PlotPos_t pos) {
+    if (pos == PlotPos_t{-1, -1}) {
+        if (subplots.isEmpty()) {
+            pos = {0, 0};
+        } else {
+            pos = {0, getSubplotCount().second + 1};
+        }
     }
 
     auto plot = new CustomPlot{this};
     auto series = plot->addDataSource(id);
     subplots.push_back({plot, pos});
-    chartWidgetLayout->addWidget(plot, pos.y(), pos.x());
+
+    chartWidgetLayout->addWidget(plot, pos.first, pos.second);
 
     return {plot, series};
 }
 
-QCPGraph* ChartWidget::insertAtPlot(DataSource::DSID id, QPoint pos) {
+QCPGraph* ChartWidget::insertAtPlot(DataSource::DSID id, PlotPos_t pos) {
     auto plot = getPlot(pos);
 
     if (plot == nullptr) {
@@ -45,7 +50,7 @@ QCPGraph* ChartWidget::insertAtPlot(DataSource::DSID id, QPoint pos) {
     return plot->addDataSource(id);
 }
 
-void ChartWidget::removePlot(QPoint pos) {
+void ChartWidget::removePlot(PlotPos_t pos) {
     auto plot = getPlot(pos);
 
     if (plot == nullptr) {
@@ -82,7 +87,7 @@ void ChartWidget::removeAllPlots() {
     subplots.clear();
 }
 
-CustomPlot* ChartWidget::getPlot(QPoint pos) const {
+CustomPlot* ChartWidget::getPlot(PlotPos_t pos) const {
     auto it = std::ranges::find_if(subplots,
                                    [pos](auto& p) { return p.second == pos; });
 
@@ -93,7 +98,7 @@ CustomPlot* ChartWidget::getPlot(QPoint pos) const {
     return it->first;
 }
 
-void ChartWidget::clearPlot(QPoint pos) {
+void ChartWidget::clearPlot(PlotPos_t pos) {
     auto plot = getPlot(pos);
 
     if (plot == nullptr) {
@@ -101,6 +106,9 @@ void ChartWidget::clearPlot(QPoint pos) {
     }
 
     plot->graph()->data()->clear();
+    
+    // replot
+    plot->replot();
 }
 void ChartWidget::clearPlot(DataSource::DSID id) {
     if (id == DataSource::DSID{}) {
@@ -125,7 +133,7 @@ void ChartWidget::clearPlots() {
     }
 }
 
-QVector<CustomPlot*> ChartWidget::getPlots() {
+QVector<CustomPlot*> ChartWidget::getPlots() const {
     QVector<CustomPlot*> plots;
     plots.reserve(subplots.size());
 
@@ -141,16 +149,16 @@ QPair<int, int> ChartWidget::getSubplotCount() const {
     int maxCol = 0;
 
     for (const auto& pos : subplots | std::views::values) {
-        // 最大行数为最大y坐标+1
-        maxRow = std::max(maxRow, pos.y());
-        // 最大列数为最大x坐标+1
-        maxCol = std::max(maxCol, pos.x());
+        // 最大行数为最大y坐标
+        maxRow = std::max(maxRow, pos.first);
+        // 最大列数为最大x坐标
+        maxCol = std::max(maxCol, pos.second);
     }
 
-    return {maxRow + 1, maxCol + 1};
+    return {maxRow, maxCol};
 }
-// TODO 避免行列和xy混用
-QPoint ChartWidget::getAvailablePos() const {
+
+ChartWidget::PlotPos_t ChartWidget::getAvailablePos() const {
     auto [row, col] = getSubplotCount();
 
     for (auto currRow : std::views::iota(0, row)) {
@@ -162,10 +170,10 @@ QPoint ChartWidget::getAvailablePos() const {
     }
 
     // 如果所有位置都被占用了，那么添加新的一列
-    return {0, col};
+    return {0, col + 1};
 }
 
-QPoint ChartWidget::getPlotPos(CustomPlot* plot) const {
+ChartWidget::PlotPos_t ChartWidget::getPlotPos(CustomPlot* plot) const {
     auto it = std::ranges::find_if(subplots,
                                    [plot](auto& p) { return p.first == plot; });
 

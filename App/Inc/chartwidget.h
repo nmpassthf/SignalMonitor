@@ -13,7 +13,6 @@
 #include <pch.h>
 
 #include <QPair>
-#include <QPoint>
 #include <QVector>
 #include <QWidget>
 
@@ -24,31 +23,37 @@ class ChartWidget : public QWidget {
     Q_OBJECT;
 
    public:
+    /**
+     * @brief 子图位置(row, col), 从0开始计数
+     * 
+     */
+    using PlotPos_t = QPair<int, int>;
+
     ChartWidget(QWidget* parent = nullptr);
     ~ChartWidget();
 
    public:
     QPair<CustomPlot*, QCPGraph*> addPlot(DataSource::DSID id,
-                                          QPoint pos = {-1, -1});
-    QCPGraph* insertAtPlot(DataSource::DSID id, QPoint pos);
+                                          PlotPos_t pos = {-1, -1});
+    QCPGraph* insertAtPlot(DataSource::DSID id, PlotPos_t pos);
 
-    void removePlot(QPoint pos);
+    void removePlot(PlotPos_t pos);
     void removePlot(DataSource::DSID id);
     void removeAllPlots();
 
-    CustomPlot* getPlot(QPoint pos) const;
-    QVector<CustomPlot*> getPlots();
-    void clearPlot(QPoint pos);
+    CustomPlot* getPlot(PlotPos_t pos) const;
+    QVector<CustomPlot*> getPlots() const;
+    void clearPlot(PlotPos_t pos);
 
     /**
-     * @brief 返回当前子图的行数和列数
+     * @brief 返回Widget中已使用最大的行数和列数
      *
-     * @return QPair<int, int>
+     * @return PlotPos_t
      */
-    QPair<int, int> getSubplotCount() const;
+    PlotPos_t getSubplotCount() const;
 
-    QPoint getAvailablePos() const;
-    QPoint getPlotPos(CustomPlot* plot) const;
+    PlotPos_t getAvailablePos() const;
+    PlotPos_t getPlotPos(CustomPlot* plot) const;
 
     bool isDataSourceExist(DataSource::DSID id) const;
 
@@ -57,7 +62,7 @@ class ChartWidget : public QWidget {
     void clearPlots();
 
    private:
-    QVector<QPair<CustomPlot*, QPoint>> subplots;
+    QVector<QPair<CustomPlot*, PlotPos_t>> subplots;
     QGridLayout* chartWidgetLayout;
 };
 
