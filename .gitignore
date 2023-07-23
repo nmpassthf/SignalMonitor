@@ -3,3 +3,5 @@ build
 *.user
 *.ttf
 *.ico
+qcustomplot.cpp
+qcustomplot.h

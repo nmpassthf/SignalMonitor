@@ -11,13 +11,40 @@
 
 #include <QDebug>
 #include <QGridLayout>
+#include <QVBoxLayout>
 #include <ranges>
 
-ChartWidget::ChartWidget(QWidget* parent) : QWidget{parent} {
-    chartWidgetLayout = new QGridLayout{this};
-    chartWidgetLayout->setSpacing(0);
-    // layout->setContentsMargins(0, 0, 0, 0);
-    setLayout(chartWidgetLayout);
+#include "ui_chartwidget.h"
+
+ChartWidgetToolBar::ChartWidgetToolBar(QWidget* parent)
+    : QWidget{parent}, ui{new Ui::ChartWidgetToolBar} {
+    ui->setupUi(this);
+
+    connect(ui->bToggleScopeMode, &QPushButton::clicked, this,
+            [this](bool isEnabeld) {
+                if (isEnabeld) {
+                    ui->bToggleScopeMode->setText("Scope Mode");
+
+                    // show slider bar
+                    ui->sSlider->show();
+                    ui->sliderLabel->show();
+                } else {
+                    ui->bToggleScopeMode->setText("Normal Mode");
+
+                    // hide slider bar
+                    ui->sSlider->hide();
+                    ui->sliderLabel->hide();
+                }
+            });
+
+    ui->bToggleScopeMode->click();
+}
+ChartWidgetToolBar::~ChartWidgetToolBar() { delete ui; }
+
+ChartWidget::ChartWidget(QWidget* parent)
+    : QWidget{parent}, toolBar{new ChartWidgetToolBar{this}} {
+    initLayout();
+    initToolBar();
 }
 ChartWidget::~ChartWidget() {}
 
@@ -37,6 +64,10 @@ QPair<CustomPlot*, QCPGraph*> ChartWidget::addPlot(DataSource::DSID id,
 
     chartWidgetLayout->addWidget(plot, pos.first, pos.second);
 
+    if (toolBar->isHidden()) {
+        toolBar->show();
+    }
+
     return {plot, series};
 }
 
@@ -45,6 +76,10 @@ QCPGraph* ChartWidget::insertAtPlot(DataSource::DSID id, PlotPos_t pos) {
 
     if (plot == nullptr) {
         return nullptr;
+    }
+
+    if (toolBar->isHidden()) {
+        toolBar->show();
     }
 
     return plot->addDataSource(id);
@@ -60,6 +95,10 @@ void ChartWidget::removePlot(PlotPos_t pos) {
     plot->deleteLater();
     subplots.erase(std::ranges::find_if(
         subplots, [plot](auto& p) { return p.first == plot; }));
+
+    if (subplots.isEmpty()) {
+        toolBar->hide();
+    }
 }
 
 void ChartWidget::removePlot(DataSource::DSID id) {
@@ -106,7 +145,7 @@ void ChartWidget::clearPlot(PlotPos_t pos) {
     }
 
     plot->graph()->data()->clear();
-    
+
     // replot
     plot->replot();
 }
@@ -193,4 +232,22 @@ bool ChartWidget::isDataSourceExist(DataSource::DSID id) const {
     return std::ranges::find_if(subplots, [id](auto& p) {
                return p.first->isDataSourceExist(id);
            }) != subplots.end();
+}
+
+void ChartWidget::initLayout() {
+    chartWidgetLayout = new QGridLayout{};
+    chartWidgetLayout->setSpacing(0);
+
+    auto layout = new QVBoxLayout{this};
+    layout->addWidget(toolBar);
+    layout->addLayout(chartWidgetLayout);
+
+    layout->setStretch(1, 1);
+
+    setLayout(layout);
+}
+
+void ChartWidget::initToolBar() {
+    // set toolbar hide when chartwidgetlayout is empty
+    toolBar->hide();
 }

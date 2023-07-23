@@ -19,18 +19,37 @@
 #include "datasource.h"
 #include "mycustomplot.h"
 
+namespace Ui {
+class ChartWidgetToolBar;
+}
+
+class ChartWidgetToolBar : public QWidget {
+    Q_OBJECT;
+
+   public:
+    ChartWidgetToolBar(QWidget* parent = nullptr);
+    ~ChartWidgetToolBar();
+
+    Ui::ChartWidgetToolBar* ui;
+};
+
 class ChartWidget : public QWidget {
     Q_OBJECT;
 
    public:
     /**
      * @brief 子图位置(row, col), 从0开始计数
-     * 
+     *
      */
     using PlotPos_t = QPair<int, int>;
 
     ChartWidget(QWidget* parent = nullptr);
     ~ChartWidget();
+
+   signals:
+    // TODO
+    void windowExited(QVector<DataSource::DSID> ids);
+    void plotRemoved(DataSource::DSID id);
 
    public:
     QPair<CustomPlot*, QCPGraph*> addPlot(DataSource::DSID id,
@@ -62,8 +81,14 @@ class ChartWidget : public QWidget {
     void clearPlots();
 
    private:
+    void initLayout();
+    void initToolBar();
+
+   private:
     QVector<QPair<CustomPlot*, PlotPos_t>> subplots;
     QGridLayout* chartWidgetLayout;
+
+    ChartWidgetToolBar* toolBar;
 };
 
 #endif /* __M_CHARTWIDGET_H__ */

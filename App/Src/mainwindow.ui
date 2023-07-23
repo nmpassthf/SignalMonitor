@@ -61,7 +61,7 @@
    <item>
     <widget class="QPushButton" name="bClearPlots">
      <property name="text">
-      <string>Clear Plots</string>
+      <string>Clear All Plots</string>
      </property>
     </widget>
    </item>

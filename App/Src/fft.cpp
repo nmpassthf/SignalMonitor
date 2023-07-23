@@ -91,9 +91,6 @@ std::string Fourier::pretty(const ComplexArray& inputData) {
 }
 
 std::string Fourier::prettyComplexDouble(const ComplexDouble& cDouble) {
-    auto r = floatIsZero(cDouble.real());
-    auto i = floatIsZero(cDouble.imag());
-
     auto real =
         std::to_string(floatIsZero(cDouble.real()) ? 0 : cDouble.real());
     real = real.erase(real.find_last_not_of('0'));
