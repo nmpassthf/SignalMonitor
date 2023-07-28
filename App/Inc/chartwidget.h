@@ -13,6 +13,7 @@
 #include <pch.h>
 
 #include <QPair>
+#include <QBoxLayout>
 #include <QVector>
 #include <QWidget>
 
@@ -86,7 +87,7 @@ class ChartWidget : public QWidget {
 
    private:
     QVector<QPair<CustomPlot*, PlotPos_t>> subplots;
-    QGridLayout* chartWidgetLayout;
+    QHBoxLayout* chartWidgetLayout;
 
     ChartWidgetToolBar* toolBar;
 };

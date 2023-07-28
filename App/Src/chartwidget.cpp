@@ -10,8 +10,7 @@
 #include "chartwidget.h"
 
 #include <QDebug>
-#include <QGridLayout>
-#include <QVBoxLayout>
+#include <QHBoxLayout>
 #include <ranges>
 
 #include "ui_chartwidget.h"
@@ -50,19 +49,54 @@ ChartWidget::~ChartWidget() {}
 
 QPair<CustomPlot*, QCPGraph*> ChartWidget::addPlot(DataSource::DSID id,
                                                    PlotPos_t pos) {
-    if (pos == PlotPos_t{-1, -1}) {
+    if (pos.second == -1) {
         if (subplots.isEmpty()) {
-            pos = {0, 0};
+            pos.second = 0;
         } else {
-            pos = {0, getSubplotCount().second + 1};
+            pos.second = getSubplotCount().second + 1;
         }
+    }
+
+    if (pos.first == -1) {
+        // find the max row in this column
+        auto it = std::ranges::max_element(
+            std::ranges::find_if(
+                subplots,
+                [pos](auto& p) { return p.second.second == pos.second; }),
+            subplots.cend(), {}, [](auto& p) { return p.second.first; });
+        
+        pos.first = it == subplots.cend() ? 0 : it->second.first + 1;
     }
 
     auto plot = new CustomPlot{this};
     auto series = plot->addDataSource(id);
     subplots.push_back({plot, pos});
 
-    chartWidgetLayout->addWidget(plot, pos.first, pos.second);
+    auto chartwidgetHWidgetCount = chartWidgetLayout->count();
+    auto chartwidgetVLayout =
+        pos.second >= chartwidgetHWidgetCount
+            ? nullptr
+            : dynamic_cast<QVBoxLayout*>(
+                  chartWidgetLayout->itemAt(pos.second)->layout());
+
+    if (chartwidgetVLayout == nullptr) {
+        chartwidgetVLayout = new QVBoxLayout{};
+        chartWidgetLayout->addLayout(chartwidgetVLayout);
+    }
+
+    if (chartwidgetVLayout->count() > pos.first) {
+        chartwidgetVLayout->insertWidget(pos.first, plot);
+
+        // change other pos in this row
+        for (auto& [subplot, subplotPos] : subplots) {
+            if (subplotPos.second == pos.second &&
+                subplotPos.first >= pos.first) {
+                ++subplotPos.first;
+            }
+        }
+    } else {
+        chartwidgetVLayout->addWidget(plot);
+    }
 
     if (toolBar->isHidden()) {
         toolBar->show();
@@ -235,7 +269,7 @@ bool ChartWidget::isDataSourceExist(DataSource::DSID id) const {
 }
 
 void ChartWidget::initLayout() {
-    chartWidgetLayout = new QGridLayout{};
+    chartWidgetLayout = new QHBoxLayout{};
     chartWidgetLayout->setSpacing(0);
 
     auto layout = new QVBoxLayout{this};
