@@ -71,6 +71,9 @@ class MainWindow : public QWidget {
                                 NewDataStrategy strategy);
 
    private:
+    constexpr static auto aimWidth = 1280;
+    constexpr static auto aimHeight = 720;
+
     Ui::MainWindow *ui;
 
     ChartWidget *currentSelectedPlot = nullptr;

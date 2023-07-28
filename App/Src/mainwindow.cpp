@@ -11,6 +11,7 @@
 
 #include <QFontDatabase>
 #include <QHBoxLayout>
+#include <QScreen>
 #include <ranges>
 
 #include "fftdatasource.h"
@@ -24,6 +25,15 @@ MainWindow::MainWindow(QWidget* parent)
     // Set App title & icon
     setWindowTitle(PROGRAM_NAME);
     setWindowIcon(QIcon{":/amamiya.ico"});
+
+    // get current def screen size
+    auto currentScreen = QGuiApplication::primaryScreen();
+
+    auto currentScreenSize = currentScreen->availableSize();
+
+    setGeometry(currentScreenSize.width() / 2 - aimWidth / 2,
+                currentScreenSize.height() / 2 - aimHeight / 2, aimWidth,
+                aimHeight);
 
     // Load title fonts
     auto currentFont =
@@ -219,8 +229,13 @@ void MainWindow::createSerialDataSource(SerialSettings settings,
     auto newPlot = createNewPlot(serialWorker, settings.portName,
                                  QPen{QColor{0x57, 0xbe, 0x8a}}, strategy);
     auto serialCustomPlot = qobject_cast<CustomPlot*>(newPlot->parentPlot());
-    serialCustomPlot->yAxis->setLabel("Voltage (V)");
-    serialCustomPlot->xAxis->setLabel("Time (us)");
+    if (settings.isTimeDomainData) {
+        serialCustomPlot->yAxis->setLabel("Voltage (V)");
+        serialCustomPlot->xAxis->setLabel("Time (us)");
+    } else {
+        serialCustomPlot->yAxis->setLabel("Amplitude");
+        serialCustomPlot->xAxis->setLabel("Frequency (Hz)");
+    }
     bindDataSource(serialWorker, newPlot);
 
     auto th = new QThread{this};
@@ -231,6 +246,11 @@ void MainWindow::createSerialDataSource(SerialSettings settings,
     th->start();
 
     // 自动添加FFT图像在其下方
+
+    if (!settings.isTimeDomainData) {
+        return;
+    }
+
     auto serialWidget =
         qobject_cast<ChartWidget*>(serialCustomPlot->parentWidget());
     auto serialWidgetPos = serialWidget->getPlotPos(serialCustomPlot);
@@ -270,7 +290,7 @@ void MainWindow::createSerialDataSource(SerialSettings settings,
     auto fftPhasePlot =
         createNewPlot(fftPhaseSource, "FFT with " + settings.portName,
                       QPen{QColor{0x66, 0xcc, 0xff}}, ReusePlot,
-                      {serialWidgetPos.first+2, serialWidgetPos.second});
+                      {serialWidgetPos.first + 2, serialWidgetPos.second});
     auto fftPhaseCustomPlot =
         qobject_cast<CustomPlot*>(fftPhasePlot->parentPlot());
     fftPhaseCustomPlot->xAxis->setLabel("Frequency (Hz)");

@@ -1,6 +1,6 @@
 ﻿cmake_minimum_required(VERSION 3.14)
 
-project(signalmonitor LANGUAGES CXX C VERSION 1.0.0.0)
+project(signalmonitor LANGUAGES CXX C VERSION 1.1.4.514)
 
 configure_file(config.h.in config.h)
 

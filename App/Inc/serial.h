@@ -18,6 +18,7 @@
 #include <QPushButton>
 #include <QSerialPort>
 #include <QSerialPortInfo>
+#include <QCheckBox>
 #include <optional>
 
 #include "dataStreamParser.h"
@@ -31,6 +32,8 @@ struct SerialSettings {
     QSerialPort::FlowControl flowControl;
     QSerialPortInfo port;
     QString portName;
+
+    bool isTimeDomainData;
 };
 
 class SerialSettingsDiag : public QDialog {
@@ -48,9 +51,12 @@ class SerialSettingsDiag : public QDialog {
     QComboBox *cActivatedPort;
     QComboBox *cBaudRate, *cStopBits, *cDataBits, *cParity, *cFlowControl;
 
+    QCheckBox* cIsTimeDomainData;
+
    private:
     void initBtns();
     void initComboBox();
+    void initCheckBox();
 };
 
 class SerialWorker : public DataSource {

@@ -34,6 +34,8 @@ SerialSettingsDiag::SerialSettingsDiag(QDialog *parent) : QDialog{parent} {
 
     initComboBox();
 
+    initCheckBox();
+
     auto currentWidgetLayout = qobject_cast<QFormLayout *>(layout());
 
     currentWidgetLayout->addRow("Port", cActivatedPort);
@@ -42,6 +44,7 @@ SerialSettingsDiag::SerialSettingsDiag(QDialog *parent) : QDialog{parent} {
     currentWidgetLayout->addRow("Data bits", cDataBits);
     currentWidgetLayout->addRow("Parity", cParity);
     currentWidgetLayout->addRow("Flow control", cFlowControl);
+    currentWidgetLayout->addRow(cIsTimeDomainData);
     currentWidgetLayout->addRow(rButtonsLayout);
 
     // lock the size of the dialog
@@ -84,6 +87,8 @@ void SerialSettingsDiag::initBtns() {
             cFlowControl->currentData().toInt());
 
         settings.portName = settings.port.portName();
+
+        settings.isTimeDomainData = cIsTimeDomainData->isChecked();
 
         emit settingsReceived(settings);
         close();
@@ -147,6 +152,12 @@ void SerialSettingsDiag::initComboBox() {
     cFlowControl->addItem("No Flow Control", QSerialPort::NoFlowControl);
     cFlowControl->addItem("Hardware Control", QSerialPort::HardwareControl);
     cFlowControl->addItem("Software Control", QSerialPort::SoftwareControl);
+}
+
+void SerialSettingsDiag::initCheckBox() {
+    cIsTimeDomainData = new QCheckBox{"is Time domain data", this};
+
+    cIsTimeDomainData->setChecked(true);
 }
 
 SerialWorker::SerialWorker(QObject *parent) : DataSource{parent} {
