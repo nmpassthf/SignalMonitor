@@ -57,6 +57,14 @@ void FFTDataSource::run() {
             continue;
         }
 
+        // detect is steo us undefined
+        if (step == 0) {
+            emit controlWordReceived(currentSelectedChannel,
+                                     DataControlWords::SetXAxisStep,
+                                     QByteArray::number(1));
+            emit error("FFTDataSource: step is undefined, reset to 1");
+        }
+
         // copy a new dataset to use zero padding
         ComplexArray dataset = this->dataset;
         dataset.reserve(fftSize);
