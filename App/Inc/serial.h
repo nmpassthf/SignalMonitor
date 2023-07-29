@@ -59,7 +59,7 @@ class SerialSettingsDiag : public QDialog {
     void initCheckBox();
 };
 
-class SerialWorker : public DataSource {
+class SerialWorker : public DataSource, public DataStreamParser {
     Q_OBJECT;
 
    public:
@@ -68,8 +68,13 @@ class SerialWorker : public DataSource {
 
     void setSerialSettings(SerialSettings);
 
-   public:
+   public slots:
     virtual void run() override;
+    virtual void clearAllData() override;
+
+    protected:
+    virtual void onControlWordReceived(qsizetype index, DataControlWords words,
+                                       QByteArray data) override;
 
    private:
     bool openSerial();
@@ -81,7 +86,6 @@ class SerialWorker : public DataSource {
     // private non-shared data
    private:
     QSerialPort *serial;
-    DataStreamParser *parser;
     QMutex mutex;
 };
 

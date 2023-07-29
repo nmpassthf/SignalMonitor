@@ -45,32 +45,6 @@ CustomPlot::CustomPlot(QWidget* parent) : QCustomPlot{parent} {
 }
 CustomPlot::~CustomPlot() {}
 
-void CustomPlot::connectDataSource(DataSource* source) {
-    if (source == nullptr) {
-        printCurrentTime()
-            << "CustomPlot::connectDataSource: source is nullptr";
-        return;
-    }
-
-    if (isDataSourceExist(source->getId()) == false) {
-        printCurrentTime() << "CustomPlot::connectDataSource: id is not added";
-        return;
-    }
-
-    connect(source, &DataSource::dataReceived, this,
-            [this, source](QVector<double> x, QVector<double> y) {
-                auto graph = getGraph(source->getId());
-                if (graph == nullptr) {
-                    printCurrentTime()
-                        << "CustomPlot::connectDataSource: graph is nullptr";
-                    return;
-                }
-
-                graph->addData(x, y);
-                replot();
-            });
-}
-
 QCPGraph* CustomPlot::addDataSource(DataSource::DSID id) {
     if (id == DataSource::DSID{}) {
         printCurrentTime() << "CustomPlot::addDataSource: id is empty";
@@ -119,6 +93,12 @@ QCPGraph* CustomPlot::getGraph(DataSource::DSID id) {
 
 bool CustomPlot::isDataSourceExist(DataSource::DSID id) const {
     return sourceToGraphMap.contains(id);
+}
+
+void CustomPlot::setPlotUnit(QByteArray xUnit, QByteArray yUnit){
+    xAxis->setLabel(xUnit);
+    yAxis->setLabel(yUnit);
+    // TODO set dynamic label
 }
 
 void CustomPlot::initChart() {

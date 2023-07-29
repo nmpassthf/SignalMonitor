@@ -115,13 +115,18 @@ void MainWindow::onSourceError(QString errorMsg) {
 }
 
 void MainWindow::onSourceControlWordReceived(
-    DataSource::DataControlWords controlWord, QByteArray DCWData) {
-    printCurrentTime() << "Control word received " << controlWord
-                       << "with external DCWData" << DCWData.toStdString();
+    qsizetype index, DataSource::DataControlWords controlWord,
+    QByteArray DCWData) {
+    printCurrentTime() << "Control word received in index:" << index
+                       << "\n\twith Ctrl word: "
+                       << DataSource::dataControlWordsToString(controlWord)
+                       << "\n\twith external DCWData: "
+                       << DCWData.toStdString();
 }
 
-QCPGraph* MainWindow::createNewPlot(DataSource* source, QString title,
-                                    QPen color, NewDataStrategy strategy,
+QCPGraph* MainWindow::createNewPlot(DataSource* source, qsizetype index,
+                                    QString title, QPen color,
+                                    NewDataStrategy strategy,
                                     ChartWidget::PlotPos_t pos) {
     CustomPlot* rPlot = nullptr;
     QCPGraph* rSeries = nullptr;
@@ -133,7 +138,7 @@ QCPGraph* MainWindow::createNewPlot(DataSource* source, QString title,
             }
 
             std::tie(rPlot, rSeries) =
-                currentSelectedPlot->addPlot(source->getId(), pos);
+                currentSelectedPlot->addPlot(source, source->getId(index), pos);
 
         } break;
         case PopUpNewWindow: {
@@ -149,13 +154,13 @@ QCPGraph* MainWindow::createNewPlot(DataSource* source, QString title,
             popUpPlots.push_back(newPlotWnd);
 
             std::tie(rPlot, rSeries) =
-                newPlotWnd->addPlot(source->getId(), pos);
+                newPlotWnd->addPlot(source, source->getId(index), pos);
 
             currentSelectedPlot = newPlotWnd;
         } break;
         case InsertAtMainWindow: {
             std::tie(rPlot, rSeries) =
-                ui->mainPlotWidget->addPlot(source->getId(), pos);
+                ui->mainPlotWidget->addPlot(source, source->getId(index), pos);
 
             currentSelectedPlot = ui->mainPlotWidget;
         } break;
@@ -172,29 +177,6 @@ QCPGraph* MainWindow::createNewPlot(DataSource* source, QString title,
     return rSeries;
 }
 
-void MainWindow::bindDataSource(DataSource* source, QCPGraph* series) {
-    connect(source, &DataSource::dataReceived, series,
-            [series](const QVector<double> x, const QVector<double> y) {
-                series->addData(x, y, true);
-
-                series->rescaleAxes();
-
-                series->parentPlot()->replot();
-            });
-    connect(
-        source, &DataSource::controlWordReceived, series,
-        [series](DataSource::DataControlWords controlWord, QByteArray DCWData) {
-            switch (controlWord) {
-                case DataSource::DataControlWords::ClearDatas:
-                    series->setData({}, {});
-                    break;
-
-                default:
-                    break;
-            }
-        });
-}
-
 void MainWindow::createSerialDataSource(SerialSettings settings,
                                         NewDataStrategy strategy) {
     printCurrentTime() << "Serial settings received";
@@ -207,26 +189,33 @@ void MainWindow::createSerialDataSource(SerialSettings settings,
     connect(serialWorker, &SerialWorker::controlWordReceived, this,
             &MainWindow::onSourceControlWordReceived);
     connect(serialWorker, &DataSource::finished, this, [this, serialWorker]() {
-        auto& [workerRef, serialThreadRef] =
-            sourceToThreadMap[serialWorker->getId()];
+        for (auto ids : serialWorker->getIds()) {
+            if (!sourceToThreadMap.contains(ids)) {
+                continue;
+            }
 
-        workerRef = nullptr;
+            auto& [workerRef, serialThreadRef] = sourceToThreadMap[ids];
+            workerRef = nullptr;
 
-        if (serialThreadRef != nullptr && serialThreadRef->isRunning()) {
-            serialThreadRef->quit();
-            serialThreadRef->wait();
-            serialThreadRef->deleteLater();
-            serialThreadRef = nullptr;
+            if (serialThreadRef != nullptr && serialThreadRef->isRunning()) {
+                serialThreadRef->quit();
+                serialThreadRef->wait();
+                serialThreadRef->deleteLater();
+                serialThreadRef = nullptr;
+            }
+
+            printCurrentTime() << "Serial thread finished";
         }
-
-        printCurrentTime() << "Serial thread finished";
     });
 
     connect(this, &MainWindow::windowExited, serialWorker,
             &DataSource::requestStopDataSource);
 
+    connect(ui->bClearPlots, &QPushButton::clicked, serialWorker,
+            &SerialWorker::clearAllData);
+
     // TODO Pen color customable
-    auto newPlot = createNewPlot(serialWorker, settings.portName,
+    auto newPlot = createNewPlot(serialWorker, 0, settings.portName,
                                  QPen{QColor{0x57, 0xbe, 0x8a}}, strategy);
     auto serialCustomPlot = qobject_cast<CustomPlot*>(newPlot->parentPlot());
     if (settings.isTimeDomainData) {
@@ -236,13 +225,25 @@ void MainWindow::createSerialDataSource(SerialSettings settings,
         serialCustomPlot->yAxis->setLabel("Amplitude");
         serialCustomPlot->xAxis->setLabel("Frequency (Hz)");
     }
-    bindDataSource(serialWorker, newPlot);
+
+    // 绑定数据源新增子图事件
+    connect(serialWorker, &DataSource::newDataChannelCreated, this,
+            [this, serialWorker, serialCustomPlot](qsizetype index,
+                                                   DataSource::DSID id) {
+                printCurrentTime()
+                    << "New data channel created in index:" << index
+                    << "\n\twith id:" << id;
+
+                auto newPlot = createNewPlot(
+                    serialWorker, index, QString{"Channel %1"}.arg(index),
+                    QPen{QColor{0x57, 0xbe, 0x8a}}, ReusePlot, {-1, -1});
+            });
 
     auto th = new QThread{this};
     connect(th, &QThread::started, serialWorker, &DataSource::run);
     connect(th, &QThread::finished, serialWorker, &SerialWorker::deleteLater);
     serialWorker->moveToThread(th);
-    sourceToThreadMap.insert(serialWorker->getId(), {serialWorker, th});
+    sourceToThreadMap.insert(serialWorker->getId(0), {serialWorker, th});
     th->start();
 
     // 自动添加FFT图像在其下方
@@ -262,14 +263,16 @@ void MainWindow::createSerialDataSource(SerialSettings settings,
     connect(this, &MainWindow::windowExited, fftAmpSource,
             &DataSource::requestStopDataSource);
 
+    connect(ui->bClearPlots, &QPushButton::clicked, fftAmpSource,
+            &FFTDataSource::clearAllData);
+
     auto fftAmpPlot =
-        createNewPlot(fftAmpSource, "FFT with " + settings.portName,
+        createNewPlot(fftAmpSource, 0, "FFT with " + settings.portName,
                       QPen{QColor{0xfe, 0x5a, 0x5b}}, ReusePlot,
                       {serialWidgetPos.first + 1, serialWidgetPos.second});
     auto fftAmpCustomPlot = qobject_cast<CustomPlot*>(fftAmpPlot->parentPlot());
     fftAmpCustomPlot->xAxis->setLabel("Frequency (Hz)");
     fftAmpCustomPlot->yAxis->setLabel("Amptitute (V)");
-    bindDataSource(fftAmpSource, fftAmpPlot);
 
     auto fftAmpThread = new QThread{this};
     connect(fftAmpThread, &QThread::started, fftAmpSource, &DataSource::run);
@@ -277,7 +280,7 @@ void MainWindow::createSerialDataSource(SerialSettings settings,
             &FFTDataSource::deleteLater);
     connect(th, &QThread::finished, fftAmpThread, &QThread::quit);
     fftAmpSource->moveToThread(fftAmpThread);
-    sourceToThreadMap.insert(fftAmpSource->getId(),
+    sourceToThreadMap.insert(fftAmpSource->getId(0),
                              {fftAmpSource, fftAmpThread});
     fftAmpThread->start();
 
@@ -287,15 +290,17 @@ void MainWindow::createSerialDataSource(SerialSettings settings,
     connect(this, &MainWindow::windowExited, fftPhaseSource,
             &DataSource::requestStopDataSource);
 
+    connect(ui->bClearPlots, &QPushButton::clicked, fftPhaseSource,
+            &FFTDataSource::clearAllData);
+
     auto fftPhasePlot =
-        createNewPlot(fftPhaseSource, "FFT with " + settings.portName,
+        createNewPlot(fftPhaseSource, 0, "FFT with " + settings.portName,
                       QPen{QColor{0x66, 0xcc, 0xff}}, ReusePlot,
                       {serialWidgetPos.first + 2, serialWidgetPos.second});
     auto fftPhaseCustomPlot =
         qobject_cast<CustomPlot*>(fftPhasePlot->parentPlot());
     fftPhaseCustomPlot->xAxis->setLabel("Frequency (Hz)");
     fftPhaseCustomPlot->yAxis->setLabel("Phase (Angle)");
-    bindDataSource(fftPhaseSource, fftPhasePlot);
 
     auto fftPhaseThread = new QThread{this};
     connect(fftPhaseThread, &QThread::started, fftPhaseSource,
@@ -304,7 +309,7 @@ void MainWindow::createSerialDataSource(SerialSettings settings,
             &FFTDataSource::deleteLater);
     connect(th, &QThread::finished, fftPhaseThread, &QThread::quit);
     fftPhaseSource->moveToThread(fftPhaseThread);
-    sourceToThreadMap.insert(fftPhaseSource->getId(),
+    sourceToThreadMap.insert(fftPhaseSource->getId(0),
                              {fftPhaseSource, fftPhaseThread});
     fftPhaseThread->start();
 }

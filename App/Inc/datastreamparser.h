@@ -11,35 +11,65 @@
 #define __M_DATASTREAMPARSER_H__
 
 #include <QByteArray>
-#include <QObject>
 #include <QPointF>
 #include <QQueue>
+#include <QVariant>
 
-class DataStreamParser : public QObject {
-    Q_OBJECT;
-
+class DataStreamParser {
    public:
-    DataStreamParser(QObject* parent = nullptr);
-    ~DataStreamParser();
+    using SourceType = enum class SourceType { StringStream, CSV_File };
+    using RDataType = enum class RDataType {
+        RDataPointF,
+        RDataControlWord,
+        RDataErrorString
+    };
 
-    enum class SourceType { Serial, CSV_File };
+    constexpr static auto maxWordSize = 128;
+
+    DataStreamParser(SourceType type);
+    ~DataStreamParser() = default;
 
    public:
     /**
-     * @brief
+     * @brief append new data to buffer to ready for parse
      *
-     * @param data, type
-     * @return {data PointsX, data PointsY, controlWord, error}
+     * @param data
      */
-    std::tuple<QVector<double>, QVector<double>, QQueue<QByteArray>,
-               QQueue<QByteArray>>
-    parse(const QByteArray& data, SourceType type);
+    inline void appendData(const QByteArray& data) { buffer.append(data); }
+
+    /**
+     * @brief parse data from buffer
+     *
+     * @param type
+     * @return std::optional<QPair<RDataType, QVariant>>
+     * return std::nullopt if buffer is not enough to parse
+     */
+    std::optional<QPair<RDataType, QVariant>> parseData();
+
+   protected:
+    QVector<qreal> x;
+    QVector<qreal> step;
+    qsizetype currentSelectIndex = 0;
 
    private:
-    QByteArray buffer;
+    std::optional<QPair<RDataType, QVariant>> parseAsStringStream();
+    std::optional<QPair<RDataType, QVariant>> parseAsCSVFile();
 
-    qreal x = 0;
-    qreal step = 0;
+    QByteArray buffer = {};
+    SourceType type;
+    bool isStarted = false;
+
+   private:
+    static inline bool isGapChar(char c) {
+        return c == ' ' || c == '\n' || c == '\t' || c == '\r' || c == '\0';
+    };
+    static inline bool isNumberChar(char c) { return (c >= '0' && c <= '9'); };
+    static inline bool isNumberPrefixChar(char c) {
+        return c == '-' || c == '+';
+    };
+    static inline bool isNumberInterfixChar(char c) {
+        return c == '.' || c == 'e' || c == 'E';
+    };
 };
 
 #endif /* __M_DATASTREAMPARSER_H__ */

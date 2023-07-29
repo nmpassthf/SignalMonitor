@@ -160,7 +160,9 @@ void SerialSettingsDiag::initCheckBox() {
     cIsTimeDomainData->setChecked(true);
 }
 
-SerialWorker::SerialWorker(QObject *parent) : DataSource{parent} {
+SerialWorker::SerialWorker(QObject *parent)
+    : DataSource{parent},
+      DataStreamParser{DataStreamParser::SourceType::StringStream} {
     printCurrentTime() << "SerialWorker::SerialWorker()";
 }
 SerialWorker::~SerialWorker() {
@@ -186,8 +188,6 @@ void SerialWorker::run() {
     printCurrentTime() << "SerialWorker::run() @" << QThread::currentThreadId();
 
     bool isStoped = false;
-
-    parser = new DataStreamParser{this};
 
     serial = new QSerialPort{this};
 
@@ -228,24 +228,31 @@ void SerialWorker::run() {
         return;
     }
 
-    auto parseDataAndSend = [&](const QByteArray &&rawData) {
-        auto [dataX, dataY, ctrl, err] =
-            parser->parse(rawData, DataStreamParser::SourceType::Serial);
-        if (!dataX.isEmpty())
-            DataSource::appendData(dataX, dataY);
+    auto parseDataAndSend = [&]() {
+        auto result = parseData();
+        if (result == std::nullopt) {
+            return false;
+        }
 
-        if (!ctrl.isEmpty())
-            for (auto &singleCtrl : ctrl) {
-                auto [type, value] = parseControlWord(singleCtrl);
-                emit controlWordReceived(type, value);
-            }
+        switch (result->first) {
+            case DataStreamParser::RDataType::RDataPointF: {
+                auto data = result->second.toPointF();
+                DataSource::appendData({data.x()}, {data.y()});
+            } break;
 
-        if (!err.isEmpty())
-            for (auto &singleErr : err) {
-                emit error(singleErr);
-                tagToExit();
-                return;
-            }
+            case DataStreamParser::RDataType::RDataControlWord: {
+                auto [controlWord, controlWordData] =
+                    DataSource::parseControlWord(result->second.toByteArray());
+                emit controlWordReceived(currentSelectedChannel, controlWord,
+                                         controlWordData);
+            } break;
+
+            case DataStreamParser::RDataType::RDataErrorString: {
+                emit error(result->second.toString());
+            } break;
+        }
+
+        return true;
     };
 
     bool isStart = false;
@@ -270,7 +277,9 @@ void SerialWorker::run() {
                 continue;
             }
 
-            parseDataAndSend(inputBuffer.mid(inputBuffer.indexOf("%START")));
+            DataStreamParser::appendData(
+                inputBuffer.mid(inputBuffer.indexOf("%START")));
+            parseDataAndSend();
             isStart = true;
         }
     };
@@ -288,9 +297,48 @@ void SerialWorker::run() {
         if (!serial->waitForReadyRead(200))
             continue;
 
-        parseDataAndSend(serial->readAll());
+        auto d = serial->readAll();
+        DataStreamParser::appendData(d);
+        while (parseDataAndSend())
+            ;
     }
 
     tagToExit();
     serial->close();
+}
+
+void SerialWorker::clearAllData() {
+    QMutexLocker locker{&mutex};
+    x.clear();
+    x.append(0.0);
+
+    step.clear();
+    step.append(1.0);
+
+    currentSelectIndex = 0;
+
+    DataSource::clearAllData();
+}
+
+void SerialWorker::onControlWordReceived(qsizetype index,
+                                         DataControlWords words,
+                                         QByteArray data) {
+    switch (words) {
+        case DataControlWords::SetXAxisStep: {
+            step[currentSelectIndex] = data.toDouble();
+        } break;
+
+        case DataControlWords::SlelectSubplot: {
+            currentSelectIndex = data.toInt();
+
+            if (currentSelectIndex >= step.size()) {
+                step.append(1.0);
+                x.append(0.0);
+            }
+        } break;
+
+        default:
+            break;
+    }
+    DataSource::onControlWordReceived(index, words, data);
 }

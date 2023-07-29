@@ -20,7 +20,10 @@ FFTDataSource::FFTDataSource(FFTWorkMode mode,
     dataset.reserve(fftSize);
 
     connect(otherRegularSource, &DataSource::dataReceived, this,
-            [this](QVector<double> xs, QVector<double> ys) {
+            [this](qsizetype index, QVector<double> xs, QVector<double> ys) {
+                if (index != currentSelectedChannel)
+                    return;
+
                 for (auto& y : ys) {
                     if (dataset.size() < fftSize)
                         dataset.push_back({y, 0});
@@ -33,7 +36,11 @@ FFTDataSource::FFTDataSource(FFTWorkMode mode,
             });
 
     connect(otherRegularSource, &DataSource::controlWordReceived, this,
-            [this](DataSource::DataControlWords c, QByteArray DCWData) {
+            [this](qsizetype index, DataSource::DataControlWords c,
+                   QByteArray DCWData) {
+                if (index != currentSelectedChannel)
+                    return;
+
                 if (c == DataSource::DataControlWords::SetXAxisStep) {
                     this->step = DCWData.toDouble();
                 }
@@ -93,12 +100,20 @@ void FFTDataSource::run() {
 
         y[0] /= 2;
 
-        emit controlWordReceived(DataControlWords::ClearDatas);
+        emit controlWordReceived(currentSelectedChannel,
+                                 DataControlWords::ClearDatas);
         clearQueuedData();
         appendData(x, y);
     }
 
     emit finished();
 }
+
+void FFTDataSource::clearAllData() {
+    dataset.clear();
+    isDataUpdated = false;
+    DataSource::clearAllData();
+}
+
 
 void FFTDataSource::setFFTSize(uint32_t size) { fftSize = size; }

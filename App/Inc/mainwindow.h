@@ -47,7 +47,8 @@ class MainWindow : public QWidget {
 
    public slots:
     void onSourceError(QString);
-    void onSourceControlWordReceived(DataSource::DataControlWords controlWord,
+    void onSourceControlWordReceived(qsizetype index,
+                                     DataSource::DataControlWords controlWord,
                                      QByteArray DCWData);
 
    protected:
@@ -62,10 +63,9 @@ class MainWindow : public QWidget {
      * @param source
      * @return QCPGraph* Series Object
      */
-    QCPGraph *createNewPlot(DataSource *source, QString title, QPen color,
-                            NewDataStrategy strategy,
+    QCPGraph *createNewPlot(DataSource *source, qsizetype index, QString title,
+                            QPen color, NewDataStrategy strategy,
                             ChartWidget::PlotPos_t pos = {-1, -1});
-    void bindDataSource(DataSource *source, QCPGraph *series);
 
     void createSerialDataSource(SerialSettings settings,
                                 NewDataStrategy strategy);

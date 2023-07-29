@@ -31,6 +31,7 @@ class FFTDataSource : public DataSource {
    public slots:
     virtual void run() override;
     void setFFTSize(uint32_t size);
+    virtual void clearAllData() override;
 
    private:
     qreal step = 0;

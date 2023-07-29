@@ -9,101 +9,167 @@
  */
 #include "dataStreamParser.h"
 
-#include <optional>
+#include <ranges>
 
-DataStreamParser::DataStreamParser(QObject* parent) : QObject(parent) {
-    buffer = {};
+DataStreamParser::DataStreamParser(SourceType type) : type{type} {
+    x.append(0);
+    step.append(0);
 }
-DataStreamParser::~DataStreamParser() {}
 
-auto DataStreamParser::parse(const QByteArray& data, SourceType type)
-    -> std::tuple<QVector<double>, QVector<double>, QQueue<QByteArray>,
-                  QQueue<QByteArray>> {
-    QVector<double> dataX{}, dataY{};
-    QQueue<QByteArray> controlWordQueue{};
-    QQueue<QByteArray> errorQueue{};
+std::optional<QPair<DataStreamParser::RDataType, QVariant>>
+DataStreamParser::parseData() {
+    switch (type) {
+        case SourceType::StringStream:
+            return parseAsStringStream();
+            break;
+        case SourceType::CSV_File:
+            return parseAsCSVFile();
+            break;
 
-    buffer.append(data);
+        default:
+            break;
+    }
 
-    if (type == SourceType::Serial) {
-        // IFA split by ' '
-        enum class State { Num, Cmd, Gap, Begin } state = State::Begin;
+    return std::nullopt;
+}
 
-        auto isGapChar = [](auto c) {
-            return c == ' ' || c == '\n' || c == '\t' || c == '\r' || c == '\0';
+std::optional<QPair<DataStreamParser::RDataType, QVariant>>
+DataStreamParser::parseAsStringStream() {
+    using namespace std::ranges;
+    using namespace std;
+
+    enum State {
+        NumPrefix,
+        Num,
+        NumInterfix,
+        Cmd,
+        Gap,
+        Begin
+    } state = State::Begin;
+
+    QByteArray wordBuffer{};
+    wordBuffer.reserve(maxWordSize);
+
+    for (const auto& [c, i] : zip_view(buffer, views::iota(0, buffer.size()))) {
+        auto makeErrorString = [&](auto errLocateStr) {
+            return QString(
+                       "Error: Invalid char %1(0x%2) in %3. \nraw "
+                       "data:\n%4\n\tat ->%5\n")
+                .arg(c)
+                .arg((uint8_t)c, 0, 16)
+                .arg(errLocateStr)
+                .arg(buffer)
+                .arg(i);
         };
-        auto isNumberChar = [](auto c) {
-            return (c >= '0' && c <= '9') || c == '.' || c == '-' || c == '+' ||
-                   c == 'e' || c == 'E';
-        };
-        auto isSetStepCmd = [](auto cmd) { return cmd.startsWith("%t"); };
+        auto removeBufferFront = [&]() { buffer.remove(0, i + 1); };
 
-        QByteArray numOrCmdWord{};
-        for (auto& c : buffer) {
-            switch (state) {
-                case State::Num:
-                    if (isGapChar(c)) {
-                        dataX.append(x);
-                        dataY.append(numOrCmdWord.toDouble());
-                        x += step;
-                        numOrCmdWord.clear();
-                        state = State::Gap;
-                    } else if (isNumberChar(c)) {
-                        numOrCmdWord.append(c);
-                    } else {
-                        errorQueue.enqueue("Invalid char in number. \nraw:" +
-                                           buffer);
+        switch (state) {
+            case State::NumPrefix:
+                if (isNumberChar(c)) {
+                    state = State::Num;
+                    wordBuffer.append(c);
+                } else {
+                    buffer.clear();
+                    return qMakePair(
+                        RDataType::RDataErrorString,
+                        makeErrorString("number prefix is end with non-number "
+                                        "char or number interfix char"));
+                }
+                break;
+            case State::Num:
+                if (isGapChar(c)) {
+                    bool ok = false;
+                    qreal rYVal = wordBuffer.toDouble(&ok);
+                    if (!ok) {
+                        buffer.clear();
+                        return qMakePair(
+                            RDataType::RDataErrorString,
+                            makeErrorString("number is not valid"));
                     }
-                    break;
-                case State::Cmd:
-                    if (isGapChar(c)) {
-                        if (isSetStepCmd(numOrCmdWord)) {
-                            step = numOrCmdWord.mid(2).toDouble();
-                        }
 
-                        controlWordQueue.enqueue(numOrCmdWord);
-                        numOrCmdWord.clear();
-
-                        state = State::Gap;
-                    } else {
-                        numOrCmdWord.append(c);
-                    }
-                    break;
-                case State::Gap:
-                    if (isGapChar(c)) {
-                        // do nothing
-                    } else if (c == '%') {
-                        state = State::Cmd;
-                        numOrCmdWord.append(c);
-                    } else {
-                        state = State::Num;
-                        numOrCmdWord.append(c);
-                    }
-                    break;
-                case State::Begin:
-                    if (isGapChar(c)) {
-                        state = State::Gap;
-                    } else if (c == '%') {
-                        state = State::Cmd;
-                        numOrCmdWord.append(c);
-                    } else {
-                        state = State::Num;
-                        numOrCmdWord.append(c);
-                    }
-                    break;
-            }
+                    auto rVal = QVariant::fromValue(QPointF{x[currentSelectIndex], rYVal});
+                    x[currentSelectIndex] += step[currentSelectIndex];
+                    removeBufferFront();
+                    return qMakePair(RDataType::RDataPointF, rVal);
+                } else if (isNumberChar(c)) {
+                    wordBuffer.append(c);
+                } else if (isNumberInterfixChar(c)) {
+                    state = State::NumInterfix;
+                    wordBuffer.append(c);
+                } else {
+                    buffer.clear();
+                    return qMakePair(
+                        RDataType::RDataErrorString,
+                        makeErrorString("number is end with non-number char"));
+                }
+                break;
+            case State::NumInterfix:
+                if (isNumberChar(c)) {
+                    state = State::Num;
+                    wordBuffer.append(c);
+                } else if (isNumberPrefixChar(c)) {
+                    wordBuffer.append(c);
+                    state = State::NumPrefix;
+                } else {
+                    buffer.clear();
+                    return qMakePair(
+                        RDataType::RDataErrorString,
+                        makeErrorString("number interfix is end with "
+                                        "non-number char"));
+                };
+            case State::Cmd:
+                if (c != '%') {
+                    wordBuffer.append(c);
+                } else {
+                    wordBuffer.append(c);
+                    removeBufferFront();
+                    return qMakePair(RDataType::RDataControlWord, wordBuffer);
+                }
+                break;
+            case State::Gap:
+                if (isGapChar(c)) {
+                    // do nothing
+                } else if (c == '%') {
+                    state = State::Cmd;
+                    wordBuffer.append(c);
+                } else if (isNumberPrefixChar(c)) {
+                    state = State::NumPrefix;
+                    wordBuffer.append(c);
+                } else if (isNumberChar(c)) {
+                    state = State::Num;
+                    wordBuffer.append(c);
+                } else {
+                    buffer.clear();
+                    return qMakePair(RDataType::RDataErrorString,
+                                     makeErrorString("gap"));
+                }
+                break;
+            case State::Begin:
+                if (isGapChar(c)) {
+                    state = State::Gap;
+                } else if (c == '%') {
+                    state = State::Cmd;
+                    wordBuffer.append(c);
+                } else if (isNumberPrefixChar(c)) {
+                    state = State::NumPrefix;
+                    wordBuffer.append(c);
+                } else if (isNumberChar(c)) {
+                    state = State::Num;
+                    wordBuffer.append(c);
+                } else {
+                    buffer.clear();
+                    return qMakePair(RDataType::RDataErrorString,
+                                     makeErrorString("begin"));
+                }
+                break;
         }
-
-        buffer.clear();
-        buffer = numOrCmdWord;
-
-        return {dataX, dataY, controlWordQueue, errorQueue};
     }
 
-    if (type == SourceType::CSV_File) {
-        // TODO Support CSV file
-        return {};
-    }
+    return std::nullopt;
+}
 
-    return {};
+std::optional<QPair<DataStreamParser::RDataType, QVariant>>
+DataStreamParser::parseAsCSVFile() {
+    // TODO Support CSV file
+    return std::nullopt;
 }

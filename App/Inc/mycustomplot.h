@@ -36,18 +36,13 @@ class CustomPlot : public QCustomPlot {
     ~CustomPlot();
 
    public:
-    /**
-     * @brief call after addDataSource
-     *
-     * @param source
-     */
-    void connectDataSource(DataSource* source);
-
     QCPGraph* addDataSource(DataSource::DSID source);
     void removeDataSource(DataSource::DSID source);
     QCPGraph* getGraph(DataSource::DSID source);
 
     bool isDataSourceExist(DataSource::DSID source) const;
+
+    void setPlotUnit(QByteArray xUnit, QByteArray yUnit);
 
    private:
     void initChart();

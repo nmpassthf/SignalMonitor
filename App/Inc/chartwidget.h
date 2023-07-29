@@ -12,8 +12,8 @@
 
 #include <pch.h>
 
-#include <QPair>
 #include <QBoxLayout>
+#include <QPair>
 #include <QVector>
 #include <QWidget>
 
@@ -53,7 +53,7 @@ class ChartWidget : public QWidget {
     void plotRemoved(DataSource::DSID id);
 
    public:
-    QPair<CustomPlot*, QCPGraph*> addPlot(DataSource::DSID id,
+    QPair<CustomPlot*, QCPGraph*> addPlot(DataSource* ds, DataSource::DSID id,
                                           PlotPos_t pos = {-1, -1});
     QCPGraph* insertAtPlot(DataSource::DSID id, PlotPos_t pos);
 

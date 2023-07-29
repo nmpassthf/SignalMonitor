@@ -47,7 +47,8 @@ ChartWidget::ChartWidget(QWidget* parent)
 }
 ChartWidget::~ChartWidget() {}
 
-QPair<CustomPlot*, QCPGraph*> ChartWidget::addPlot(DataSource::DSID id,
+QPair<CustomPlot*, QCPGraph*> ChartWidget::addPlot(DataSource* ds,
+                                                   DataSource::DSID id,
                                                    PlotPos_t pos) {
     if (pos.second == -1) {
         if (subplots.isEmpty()) {
@@ -64,13 +65,12 @@ QPair<CustomPlot*, QCPGraph*> ChartWidget::addPlot(DataSource::DSID id,
                 subplots,
                 [pos](auto& p) { return p.second.second == pos.second; }),
             subplots.cend(), {}, [](auto& p) { return p.second.first; });
-        
+
         pos.first = it == subplots.cend() ? 0 : it->second.first + 1;
     }
 
     auto plot = new CustomPlot{this};
     auto series = plot->addDataSource(id);
-    subplots.push_back({plot, pos});
 
     auto chartwidgetHWidgetCount = chartWidgetLayout->count();
     auto chartwidgetVLayout =
@@ -98,9 +98,68 @@ QPair<CustomPlot*, QCPGraph*> ChartWidget::addPlot(DataSource::DSID id,
         chartwidgetVLayout->addWidget(plot);
     }
 
+    subplots.push_back({plot, pos});
+
     if (toolBar->isHidden()) {
         toolBar->show();
     }
+
+    // connect with data source
+    connect(ds, &DataSource::dataReceived, this,
+            [series, ds, id](qsizetype index, QVector<double> x,
+                             const QVector<double> y) {
+                auto requestId = ds->getId(index);
+
+                if (requestId != id) {
+                    return;
+                }
+
+                series->addData(x, y, true);
+
+                series->rescaleAxes();
+
+                series->parentPlot()->replot();
+            });
+    connect(ds, &DataSource::controlWordReceived, this,
+            [this, series, ds, id](qsizetype index,
+                                   DataSource::DataControlWords controlWord,
+                                   QByteArray DCWData = {}) {
+                auto requestId = ds->getId(index);
+
+                if (requestId != id) {
+                    return;
+                }
+
+                switch (controlWord) {
+                    case DataSource::DataControlWords::SetXAxisRange:
+                        series->parentPlot()->xAxis->setRangeUpper(
+                            DCWData.toDouble());
+                        break;
+
+                    case DataSource::DataControlWords::SetUseLogAxis:
+                        series->parentPlot()->yAxis->setScaleType(
+                            QCPAxis::stLogarithmic);
+                        break;
+
+                    case DataSource::DataControlWords::SetPlotName: {
+                        auto names = DCWData.split(';');
+                        if (names[0] != "{}")
+                            series->parentPlot()->xAxis->setLabel(names[0]);
+                        if (names[1] != "{}")
+                            series->parentPlot()->yAxis->setLabel(names[1]);
+                    } break;
+
+                    case DataSource::DataControlWords::SetPlotUnit: {
+                        auto units = DCWData.split(';');
+                        qobject_cast<CustomPlot*>(series->parentPlot())
+                            ->setPlotUnit(units[0], units[1]);
+                    } break;
+
+                    case DataSource::DataControlWords::ClearDatas:
+                        series->setData({}, {});
+                        break;
+                }
+            });
 
     return {plot, series};
 }
